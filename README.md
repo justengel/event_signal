@@ -67,7 +67,7 @@ class XTest(object):
     def __init__(self, x=0):
         self._x = x
 
-    @signaler_property
+    @signaler_property  # or signaler.property
     def x(self):
         return self._x
 

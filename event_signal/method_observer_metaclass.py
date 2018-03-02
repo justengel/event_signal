@@ -1,5 +1,5 @@
 import types
-from .signaler_decorator import signaler
+from .signaler import signaler
 
 
 class MethodObserverMeta(type):

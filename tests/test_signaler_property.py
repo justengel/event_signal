@@ -1,4 +1,4 @@
-from event_signal import signaler_property
+from event_signal import signaler_property, signaler
 
 
 def test_property():
@@ -203,10 +203,60 @@ def test_delete():
     assert t._post_val is None
 
 
+def test_signal_dot_property():
+    class XTest(object):
+        def __init__(self, x=0):
+            self._x = x
+            self._before_val = None
+            self._post_val = None
+
+        @signaler.property
+        def x(self):
+            return self._x
+
+        @x.setter
+        def x(self, value):
+            self._x = value
+
+        @x.on("before_change")
+        def x_changing(self, value):
+            self._before_val = value
+
+        @x.on("change")
+        def x_changed(self, value):
+            self._post_val = value
+
+    t = XTest()
+    assert t.x == 0
+    assert t._before_val is None
+    assert t._post_val is None
+
+    value = 1
+    t.x = value
+    assert t.x == value
+    assert t._before_val == value
+    assert t._post_val == value
+
+    XTest.x.off(t, "change", t.x_changed)
+    new_value = 2
+    t.x = new_value
+    assert t.x == new_value
+    assert t._before_val == new_value
+    assert t._post_val == value
+
+    XTest.x.off(t, "before_change", t.x_changing)
+    new_value2 = 3
+    t.x = new_value2
+    assert t.x == new_value2
+    assert t._before_val == new_value
+    assert t._post_val == value
+
+
 if __name__ == '__main__':
     test_property()
     test_no_setter()
     test_no_deleter()
     test_change()
     test_delete()
+    test_signal_dot_property()
     print("All tests passed!")

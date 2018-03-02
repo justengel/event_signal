@@ -1,46 +1,80 @@
-from event_signal import get_signal, on_signal, off_signal, emit_signal, add_signal
+from event_signal import get_signal, on_signal, off_signal, fire_signal, add_signal
 
 
-def test_add_signal():
+def test_add_signal_to_class():
     class SignalTest(object):
         A = None
 
-    NewSignalTest = add_signal("testing", SignalTest)
-    assert NewSignalTest.A is None
-    assert hasattr(NewSignalTest, "connect_testing")
-    assert hasattr(NewSignalTest, "disconnect_testing")
-    assert hasattr(NewSignalTest, "emit_testing")
+    add_signal(SignalTest, "testing")
+    assert SignalTest.A is None
+    assert hasattr(SignalTest, "event_signals")
+    assert "testing" in SignalTest.event_signals
+    assert SignalTest.event_signals["testing"] == []
+    assert hasattr(SignalTest, "get_signal")
+    assert hasattr(SignalTest, "on")
+    assert hasattr(SignalTest, "off")
+    assert hasattr(SignalTest, "fire")
 
-    t = NewSignalTest()
-    test = []
-
-    def testing(value1, value2):
-        test.append((value1, value2))
-
-    # Test connect and emit
-    t.connect_testing(testing)
-    t.emit_testing("abc", "123")
-    assert test == [("abc", "123")]
-
-    # Test disconnect
-    t.disconnect_testing(testing)
-    t.emit_testing("blah", False)
-    assert test == [("abc", "123")]
-
-
-def test_add_signal_decorator():
-    @add_signal("testing")
-    class SignalTest(object):
-        B = None
-
-    assert SignalTest.B is None
-    assert hasattr(SignalTest, "connect_testing")
-    assert hasattr(SignalTest, "disconnect_testing")
-    assert hasattr(SignalTest, "emit_testing")
-
+    # ===== Test instances =====
     t = SignalTest()
-    assert hasattr(t, "_testing_funcs")
-    assert t._testing_funcs == []
+    test = []
+
+    def testing(value1, value2):
+        test.append((value1, value2))
+
+    # Test connect and emit
+    t.on("testing", testing)
+    t.fire("testing", "abc", "123")
+    assert test == [("abc", "123")]
+
+    # Test disconnect
+    t.off("testing", testing)
+    t.fire("testing", "blah", False)
+    assert test == [("abc", "123")]
+
+    # ===== Test the class =====
+    test = []
+
+    def testing(value1, value2):
+        test.append((value1, value2))
+
+    # Test connect and emit
+    t.on("testing", testing)
+    t.fire("testing", "abc", "123")
+    assert test == [("abc", "123")]
+
+    # Test disconnect
+    t.off("testing", testing)
+    t.fire("testing", "blah", False)
+    assert test == [("abc", "123")]
+
+
+def test_add_signal_to_obj():
+    class SignalTest(object):
+        A = None
+
+    assert not hasattr(SignalTest, "event_signals")
+    assert not hasattr(SignalTest, "get_signal")
+    assert not hasattr(SignalTest, "on")
+    assert not hasattr(SignalTest, "off")
+    assert not hasattr(SignalTest, "fire")
+
+    # ===== Test instances =====
+    t = SignalTest()
+    add_signal(t, "testing")
+
+    assert not hasattr(SignalTest, "event_signals")
+    assert not hasattr(SignalTest, "get_signal")
+    assert not hasattr(SignalTest, "on")
+    assert not hasattr(SignalTest, "off")
+    assert not hasattr(SignalTest, "fire")
+    assert hasattr(t, "event_signals")
+    assert "testing" in t.event_signals
+    assert t.event_signals['testing'] == []
+    assert hasattr(t, "get_signal")
+    assert hasattr(t, "on")
+    assert hasattr(t, "off")
+    assert hasattr(t, "fire")
 
     test = []
 
@@ -48,13 +82,13 @@ def test_add_signal_decorator():
         test.append((value1, value2))
 
     # Test connect and emit
-    t.connect_testing(testing)
-    t.emit_testing("abc", "123")
+    t.on("testing", testing)
+    t.fire("testing", "abc", "123")
     assert test == [("abc", "123")]
 
     # Test disconnect
-    t.disconnect_testing(testing)
-    t.emit_testing("blah", False)
+    t.off("testing", testing)
+    t.fire("testing", "blah", False)
     assert test == [("abc", "123")]
 
 
@@ -62,42 +96,25 @@ def test_get_signal():
     class SignalTest(object):
         def __init__(self):
             super().__init__()
-            self._testing_funcs = []
-
-        def connect_testing(self, func):
-            if func not in self._testing_funcs:
-                self._testing_funcs.append(func)
-
-        def disconnect_testing(self, func=None):
-            if func is None:
-                self._testing_funcs = []
-            else:
-                try:
-                    self._testing_funcs.remove(func)
-                except:
-                    pass
-
-        def emit_testing(self, *args, **kwargs):
-            for func in self._testing_funcs:
-                func(*args, **kwargs)
+            self.event_signals = {"testing": []}
 
     t = SignalTest()
-    assert hasattr(t, "_testing_funcs")
-    assert t._testing_funcs == []
+    assert hasattr(t, "event_signals") and "testing" in t.event_signals
     assert get_signal(t, "testing") == []
+    assert t.event_signals["testing"] == []
 
-    t.connect_testing(print)
+    t.event_signals["testing"].append(print)
     assert get_signal(t, "testing") == [print]
 
     def blah(*args):
         pass
-    t.connect_testing(blah)
+    t.event_signals["testing"].append(blah)
     assert get_signal(t, "testing") == [print, blah]
 
-    t.disconnect_testing(print)
+    t.event_signals["testing"].remove(print)
     assert get_signal(t, "testing") == [blah]
 
-    t.disconnect_testing(blah)
+    t.event_signals["testing"].remove(blah)
     assert get_signal(t, "testing") == []
 
 
@@ -105,32 +122,12 @@ def test_on_signal():
     class SignalTest(object):
         def __init__(self):
             super().__init__()
-            self._testing_funcs = []
-
-        def connect_testing(self, func):
-            if func not in self._testing_funcs:
-                self._testing_funcs.append(func)
-
-        def disconnect_testing(self, func=None):
-            if func is None:
-                self._testing_funcs = []
-            else:
-                try:
-                    self._testing_funcs.remove(func)
-                except:
-                    pass
-
-        def emit_testing(self, *args, **kwargs):
-            for func in self._testing_funcs:
-                func(*args, **kwargs)
-
-    assert hasattr(SignalTest, "connect_testing")
-    assert hasattr(SignalTest, "disconnect_testing")
-    assert hasattr(SignalTest, "emit_testing")
+            self.event_signals = {"testing": []}
 
     t = SignalTest()
-    assert hasattr(t, "_testing_funcs")
-    assert t._testing_funcs == []
+    assert hasattr(t, "event_signals") and "testing" in t.event_signals
+    assert get_signal(t, "testing") == []
+    assert t.event_signals["testing"] == []
 
     test = []
 
@@ -139,45 +136,25 @@ def test_on_signal():
 
     # Test connect and emit
     on_signal(t, "testing", testing)
-    t.emit_testing("abc", "123")
+    assert t.event_signals["testing"] == [testing]
+    t.event_signals['testing'][0]("abc", "123")
     assert test == [("abc", "123")]
 
     # Test disconnect
-    t.disconnect_testing(testing)
-    t.emit_testing("blah", False)
-    assert test == [("abc", "123")]
+    t.event_signals["testing"].remove(testing)
+    assert t.event_signals["testing"] == []
 
 
 def test_off_signal():
     class SignalTest(object):
         def __init__(self):
             super().__init__()
-            self._testing_funcs = []
-
-        def connect_testing(self, func):
-            if func not in self._testing_funcs:
-                self._testing_funcs.append(func)
-
-        def disconnect_testing(self, func=None):
-            if func is None:
-                self._testing_funcs = []
-            else:
-                try:
-                    self._testing_funcs.remove(func)
-                except:
-                    pass
-
-        def emit_testing(self, *args, **kwargs):
-            for func in self._testing_funcs:
-                func(*args, **kwargs)
-
-    assert hasattr(SignalTest, "connect_testing")
-    assert hasattr(SignalTest, "disconnect_testing")
-    assert hasattr(SignalTest, "emit_testing")
+            self.event_signals = {"testing": []}
 
     t = SignalTest()
-    assert hasattr(t, "_testing_funcs")
-    assert t._testing_funcs == []
+    assert hasattr(t, "event_signals") and "testing" in t.event_signals
+    assert get_signal(t, "testing") == []
+    assert t.event_signals["testing"] == []
 
     test = []
 
@@ -185,46 +162,25 @@ def test_off_signal():
         test.append((value1, value2))
 
     # Test connect and emit
-    t.connect_testing(testing)
-    t.emit_testing("abc", "123")
+    t.event_signals["testing"].append(testing)
+    t.event_signals["testing"][0]("abc", "123")
     assert test == [("abc", "123")]
 
     # Test disconnect
     off_signal(t, "testing", testing)
-    t.emit_testing("blah", False)
-    assert test == [("abc", "123")]
+    assert t.event_signals["testing"] == []
 
 
-def test_emit_signal():
+def test_fire_signal():
     class SignalTest(object):
         def __init__(self):
             super().__init__()
-            self._testing_funcs = []
-
-        def connect_testing(self, func):
-            if func not in self._testing_funcs:
-                self._testing_funcs.append(func)
-
-        def disconnect_testing(self, func=None):
-            if func is None:
-                self._testing_funcs = []
-            else:
-                try:
-                    self._testing_funcs.remove(func)
-                except:
-                    pass
-
-        def emit_testing(self, *args, **kwargs):
-            for func in self._testing_funcs:
-                func(*args, **kwargs)
-
-    assert hasattr(SignalTest, "connect_testing")
-    assert hasattr(SignalTest, "disconnect_testing")
-    assert hasattr(SignalTest, "emit_testing")
+            self.event_signals = {"testing": []}
 
     t = SignalTest()
-    assert hasattr(t, "_testing_funcs")
-    assert t._testing_funcs == []
+    assert hasattr(t, "event_signals") and "testing" in t.event_signals
+    assert get_signal(t, "testing") == []
+    assert t.event_signals["testing"] == []
 
     test = []
 
@@ -232,21 +188,19 @@ def test_emit_signal():
         test.append((value1, value2))
 
     # Test connect and emit
-    t.connect_testing(testing)
-    emit_signal(t, "testing", "abc", "123")
+    t.event_signals["testing"].append(testing)
+    fire_signal(t, "testing", "abc", "123")
     assert test == [("abc", "123")]
 
-    # Test disconnect
-    t.disconnect_testing(testing)
-    emit_signal(t, "testing", "blah", False)
-    assert test == [("abc", "123")]
+    fire_signal(t, "testing", "Hello", "World!")
+    assert test == [("abc", "123"), ("Hello", "World!")]
 
 
 if __name__ == '__main__':
-    test_add_signal()
-    test_add_signal_decorator()
+    test_add_signal_to_class()
+    test_add_signal_to_obj()
     test_get_signal()
     test_on_signal()
     test_off_signal()
-    test_emit_signal()
+    test_fire_signal()
     print("All tests passed!")

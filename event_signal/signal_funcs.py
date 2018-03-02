@@ -1,94 +1,98 @@
+import inspect
 
 
-__all__ = ["get_signal", "on_signal", "off_signal", "emit_signal", "add_signal"]
+__all__ = ["get_signal", "on_signal", "off_signal", "fire_signal", "add_signal"]
 
 
-def get_signal(manager, signal_type):
+def get_signal(obj, signal_type):
     """Return a list of callback functions that are connected to the signal."""
-    funcs_sig = getattr(manager, "_"+signal_type+"_funcs", None)
-    if funcs_sig is None:
+    try:
+        sig = obj.event_signals[signal_type]
+        return [func for func in sig]
+    except (KeyError, AttributeError) as error:
         raise ValueError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
-                         "signal.".format(repr(signal_type)))
-    return [func for func in funcs_sig]
+                         "signal.".format(repr(signal_type))) from error
 
 
-def on_signal(manager, signal_type, func):
+def on_signal(obj, signal_type, func):
     """Connect a callback function to a signal."""
-    connect_sig = getattr(manager, "connect_"+signal_type, None)
-    if connect_sig is None:
-        raise ValueError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
-                         "signal.".format(repr(signal_type)))
-    connect_sig(func)
+    try:
+        sig = obj.event_signals[signal_type]
+        if func not in sig:
+            sig.append(func)
+    except (KeyError, AttributeError):
+        if not hasattr(obj, "event_signals"):
+            obj.event_signals = {}
+        obj.event_signals[signal_type] = [func]
 
 
-def off_signal(manager, signal_type, func):
+def off_signal(obj, signal_type, func):
     """Disconnect a callback function from a signal."""
-    disconnect_sig = getattr(manager, "disconnect_"+signal_type, None)
-    if disconnect_sig is None:
-        raise ValueError("Invalid 'signal_type' given ({:s}). Cannot disconnect a function from this "
-                         "signal.".format(repr(signal_type)))
-    disconnect_sig(func)
-
-
-def emit_signal(manager, signal_type, *args, **kwargs):
-    """Call all fo the callback functions for a signal."""
-    emit_sig = getattr(manager, "emit_"+signal_type, None)
-    if emit_sig is None:
-        raise ValueError("Invalid 'signal_type' given ({:s}). Cannot emit and call callback functions from this "
-                         "signal.".format(repr(signal_type)))
-    emit_sig(*args, **kwargs)
-
-
-def add_signal(signal_type, cls=None):
-    """Add a 'signal_type' to a class."""
-    # ===== Decorator =====
-    if cls is None:
-        def wrapper(cls):
-            return add_signal(signal_type, cls)
-        return wrapper
-
-    # ===== Make Class =====
-    if not hasattr(cls, "SIGNALS"):
-        cls.SIGNALS = []
-
-    if signal_type in cls.SIGNALS:
-        raise ValueError("Class " + repr(cls) + " already has the signal_type "+repr(signal_type))
-
-    funcs_var = "_"+signal_type+"_funcs"
-
-    class NewClass(cls):
-        SIGNALS = [sig for sig in cls.SIGNALS] + [signal_type]
-
-        def __init__(self, *args, **kwargs):
-            setattr(self, funcs_var, [])
-            super(NewClass, self).__init__(*args, **kwargs)
-
-    def connect_func(self, func):
-        funcs = getattr(self, funcs_var)
-        if func not in funcs:
-            funcs.append(func)
-
-    def disconnect_func(self, func=None):
-        funcs = getattr(self, funcs_var)
+    try:
+        sig = obj.event_signals[signal_type]
+        existed = func in sig
         if func is None:
-            funcs.clear()
+            sig.clear()
         else:
             try:
-                funcs.remove(func)
+                sig.remove(func)
             except:
                 pass
+        return existed
+    except (KeyError, AttributeError):
+        return False
 
-    def emit_func(self, *args, **kwargs):
-        for func in getattr(self, funcs_var):
-            func(*args, **kwargs)
 
-    setattr(NewClass, "connect_"+signal_type, connect_func)
-    setattr(NewClass, "disconnect_"+signal_type, disconnect_func)
-    setattr(NewClass, "emit_"+signal_type, emit_func)
-
+def fire_signal(obj, signal_type, *args, **kwargs):
+    """Call all fo the callback functions for a signal."""
     try:
-        NewClass.__name__ = cls.__name__
-    except AttributeError:
-        pass
+        sig = obj.event_signals[signal_type]
+    except (KeyError, AttributeError) as error:
+        sig = []
+        raise ValueError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
+                         "signal.".format(repr(signal_type))) from error
 
-    return NewClass
+    for func in sig:
+        func(*args, **kwargs)
+
+
+def add_signal(obj, signal_type, assign_signal_functions=True):
+    """Add a 'signal_type' to an object.
+
+    Warning:
+        If a class is given the signal will be added as a class variable. All instances will share the signals.
+
+    Example:
+
+        ..code-block:: python
+
+            >>> # Decorator example
+            >>> item = MyClass()
+            >>> add_signal(item, "custom_notifier")
+            >>> item.on("custom_notifier", lambda *args: print(*args))
+            >>> item.fire("custom_notifier", "Hello World!")
+
+    Args:
+        signal_type(str): String signal name.
+        obj (object)[None]: Object that will have the signal items added to it.
+            If an object is not given this function works as a decorator.
+        assign_signal_functions (bool)[True]: Add methods 'get_signal', 'on', 'off', and 'fire'.
+    """
+    # Add normal signal methods
+    if assign_signal_functions:
+        if not hasattr(obj, "get_signal"):
+            obj.get_signal = get_signal.__get__(obj, obj.__class__)
+        if not hasattr(obj, "on"):
+            obj.on = on_signal.__get__(obj, obj.__class__)
+        if not hasattr(obj, "off"):
+            obj.off = off_signal.__get__(obj, obj.__class__)
+        if not hasattr(obj, "fire"):
+            obj.fire = fire_signal.__get__(obj, obj.__class__)
+
+    # Add signal dictionary
+    if not hasattr(obj, "event_signals"):
+        obj.event_signals = {}
+    if signal_type not in obj.event_signals:
+        obj.event_signals[signal_type] = []
+
+    return obj

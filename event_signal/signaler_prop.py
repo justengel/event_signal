@@ -80,13 +80,130 @@ Example:
         Point.x.off(p, "change")  # Remove all callbacks from change
 
 """
-from .signal_funcs import get_signal, on_signal, off_signal, emit_signal
+from .signal_funcs import get_signal, on_signal, off_signal, fire_signal
+from .signaler_inst import SignalerInstance
 
 
 __all__ = ["signaler_property"]
 
 
-class signaler_property(property):
+def copy_signals(old_sig, sig):
+    """Copy the event_signals over to the new sig.
+
+    Args:
+        old_sig: Copy event_signals from this object.
+        sig: Add event_signals to this object
+    """
+    if not hasattr(sig, "event_signals"):
+        sig.event_signals = {}
+
+    # Map all of the connected callbacks as bound methods to the instance
+    for key, funcs in old_sig.event_signals.items():
+        if key not in sig.event_signals:
+            sig.event_signals[key] = []
+
+        # Bind the methods and add them to the signals
+        bound_funcs = [func for func in funcs if func not in sig.event_signals[key]]
+        sig.event_signals[key] = sig.event_signals[key] + bound_funcs
+
+
+def copy_signals_as_bound(old_sig, sig, instance):
+    """Copy the event_signals over to the new sig as bound methods.
+
+    Args:
+        old_sig: Copy event_signals from this object.
+        sig: Add event_signals to this object
+        instance (object): Instance object to bind methods to.
+    """
+    if not hasattr(sig, "event_signals"):
+        sig.event_signals = {}
+
+    # Map all of the connected callbacks as bound methods to the instance
+    for key, funcs in old_sig.event_signals.items():
+        if key not in sig.event_signals:
+            sig.event_signals[key] = []
+
+        # Bind the methods and add them to the signals
+        bound_funcs = [func.__get__(instance, instance.__class__) for func in funcs]
+        sig.event_signals[key] = sig.event_signals[key] + bound_funcs
+
+
+class SignalerPropertyInstance(SignalerInstance):
+    """Replaces a property with this class that uses callback functions for before and after a value changes.
+
+    Signals (Callbacks):
+
+        * 'before_delete' - function should take no arguments
+        * 'delete' - function should take no arguments
+        * 'before_change' - function should take a single value argument
+        * 'change' - function should take a single value argument
+    """
+    def __init__(self, fget=None, fset=None, fdel=None, doc=None, check_change=True):
+        """Initialize like a property
+
+        Args:
+            fget (function/method)[None]: Getter method for the property
+            fset (function/method)[None]: Setter method for the property
+            fdel (function/method)[None]: Deleter method for the property
+            doc (str)[None]: Documentation for the property
+            check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
+        """
+        super(SignalerPropertyInstance, self).__init__()
+
+        self.check_change = check_change
+        self.fget = fget
+        self.fset = fset
+        self.fdel = fdel
+        if doc is None and fget is not None:
+            doc = fget.__doc__
+        self.__doc__ = doc
+
+        self.event_signals["before_delete"] = []
+        self.event_signals["delete"] = []
+        self.event_signals["before_change"] = []
+        self.event_signals["change"] = []
+
+    # ===== Property methods =====
+    def get_value(self):
+        """Return the property value with the getter function."""
+        if self.fget is None:
+            raise AttributeError("unreadable attribute")
+        return self.fget()
+
+    def set_value(self, value):
+        """Set the property value with the setter function."""
+        if self.fset is None:
+            raise AttributeError("can't set attribute")
+
+        # Check if the new value is different from the current value
+        if self.check_change and self.fget:
+            val = self.get_value()
+            if val == value:
+                return
+
+        # Set the value
+        self.fire("before_change", value)
+        ret = self.fset(value)
+
+        # Get the new value from the getter if possible
+        new_val = value
+        if self.fget:
+            new_val = self.get_value()
+        self.fire("change", new_val)
+
+        return ret  # None usually
+
+    def del_value(self):
+        """Delete the property value with the deleter function."""
+        if self.fdel is None:
+            raise AttributeError("can't delete attribute")
+        self.fire("before_delete")
+        ret = self.fdel()
+        self.fire("delete")
+        return ret  # None usually
+
+
+class signaler_property(property, SignalerInstance):
     """Property that is observable through callback functions.
 
     Add a callback to function to be called when a before a property changes or after a property changes. Callbacks
@@ -142,8 +259,6 @@ class signaler_property(property):
             m.x = 2
             print(m.x)
     """
-    SIGNALS = ["before_delete", "delete", "before_change", "change"]
-
     def __init__(self, fget=None, fset=None, fdel=None, doc=None, check_change=True):
         """Initialize like a property
 
@@ -154,31 +269,31 @@ class signaler_property(property):
             doc (str)[None]: Documentation for the property
             check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
         """
-        self._before_delete_funcs = []
-        self._delete_funcs = []
-        self._before_change_funcs = []
-        self._change_funcs = []
-
+        super(signaler_property, self).__init__(fget=fget, fset=fset, fdel=fdel, doc=doc)
+        self.event_signals = {}
+        self.event_signals["before_delete"] = []
+        self.event_signals["delete"] = []
+        self.event_signals["before_change"] = []
+        self.event_signals["change"] = []
         self.check_change = check_change
 
-        super(signaler_property, self).__init__(fget=fget, fset=fset, fdel=fdel, doc=doc)
         try:
             self.__name__ = self.fget.__name__
         except AttributeError:
             pass
     # end Constructor
 
-    def get_callback_manager(self, instance=None):
-        """Return (maybe create) the instance ObservableCallbackManager.
+    def get_signaler_instance(self, instance=None):
+        """Return (maybe create as well) the signals mapped to the instance.
 
         Args:
-            instance (object)[None]: Instance object that has observables.
+            instance (object)[None]: Instance object that has signals.
         """
         if instance is None:
             instance = self
-        if not hasattr(instance, "__observables__"):
-            instance.__observables__ = {}
-        if self not in instance.__observables__:
+        if not hasattr(instance, "__signalers__"):
+            instance.__signalers__ = {}
+        if self not in instance.__signalers__:
             fget = None
             fset = None
             fdel = None
@@ -191,25 +306,22 @@ class signaler_property(property):
                 fset = self.fset.__get__(instance, instance.__class__)
             if self.fdel:
                 fdel = self.fdel.__get__(instance, instance.__class__)
-            instance.__observables__[self] = ObservableCallbackManager(fget=fget, fset=fset, fdel=fdel,
-                                                                doc=doc, check_change=self.check_change)
-            instance.__observables__[self]._before_delete_funcs = [func.__get__(instance, instance.__class__)
-                                                                for func in self._before_delete_funcs]
-            instance.__observables__[self]._delete_funcs = [func.__get__(instance, instance.__class__)
-                                                            for func in self._delete_funcs]
-            instance.__observables__[self]._before_change_funcs = [func.__get__(instance, instance.__class__)
-                                                                for func in self._before_change_funcs]
-            instance.__observables__[self]._change_funcs = [func.__get__(instance, instance.__class__)
-                                                            for func in self._change_funcs]
 
-        return instance.__observables__[self]  # return an event handler object for the instance
+            # Create the new signaler for the instance with bound methods.
+            sig = SignalerPropertyInstance(fget=fget, fset=fset, fdel=fdel, doc=doc, check_change=self.check_change)
+            instance.__signalers__[self] = sig
+
+            # Map all of the connected callbacks as bound methods to the instance
+            copy_signals_as_bound(self, sig, instance)
+
+        return instance.__signalers__[self]  # return an event handler object for the instance
     # end get_callback_manager
 
     # ========== class decorator ==========
     def __set__(self, instance, obj):
         """Class decorator that is called for `obj.x = 1`."""
-        observ = self.get_callback_manager(instance)
-        return observ.set_value(obj)
+        sig = self.get_signaler_instance(instance)
+        return sig.set_value(obj)
     # end __set__
 
     def __get__(self, *args, **kwargs):
@@ -217,24 +329,21 @@ class signaler_property(property):
         if len(args) == 0 or args[0] is None:
             return self
         instance = args[0]
-        observ = self.get_callback_manager(instance)
-        return observ.get_value()
+        sig = self.get_signaler_instance(instance)
+        return sig.get_value()
     # end __get__
 
     def __delete__(self, instance):
         """Class decorator that is called for `del obj.x`."""
-        observ = self.get_callback_manager(instance)
-        return observ.del_value()
+        sig = self.get_signaler_instance(instance)
+        return sig.del_value()
 
     # ===== Decorators =====
     def getter(self, fget):
         """Decorator to add a getter method. Works just like @property.getter."""
         obj = super(signaler_property, self).getter(fget)
-        obj._before_delete_funcs = self._before_delete_funcs
-        obj._delete_funcs = self._delete_funcs
-        obj._before_change_funcs = self._before_change_funcs
-        obj._change_funcs = self._change_funcs
         obj.check_change = self.check_change
+        copy_signals(self, obj)
         try:
             obj.__name__ = obj.fget.__name__
         except AttributeError:
@@ -244,25 +353,19 @@ class signaler_property(property):
     def setter(self, fset):
         """Decorator to add a setter method. Works just like @property.setter."""
         obj = super(signaler_property, self).setter(fset)
-        obj._before_delete_funcs = self._before_delete_funcs
-        obj._delete_funcs = self._delete_funcs
-        obj._before_change_funcs = self._before_change_funcs
-        obj._change_funcs = self._change_funcs
         obj.check_change = self.check_change
+        copy_signals(self, obj)
         return obj
 
     def deleter(self, fdel):
         """Decorator to add a deleter method. Works just like @property.deleter."""
         obj = super(signaler_property, self).deleter(fdel)
-        obj._before_delete_funcs = self._before_delete_funcs
-        obj._delete_funcs = self._delete_funcs
-        obj._before_change_funcs = self._before_change_funcs
-        obj._change_funcs = self._change_funcs
         obj.check_change = self.check_change
+        copy_signals(self, obj)
         return obj
 
     # ========== Connect Callback functions ==========
-    def get(self, instance, signal_type=None):
+    def get_signal(self, instance, signal_type=None):
         """Return a list of callback methods.
 
         Options:
@@ -284,7 +387,7 @@ class signaler_property(property):
                     def about_to_change_x(*args):
                         print("x is about to change")
 
-                print(MyClass.x.get("before_change"))
+                print(MyClass.x.get_signal("before_change"))
 
             If user gives 'instance', 'signal_type', and (optional) 'func' arguments.
 
@@ -304,7 +407,7 @@ class signaler_property(property):
                         print("x is about to change")
 
                 obj = MyClass()
-                print(MyClass.x.get(obj, "before_change"))
+                print(MyClass.x.get_signal(obj, "before_change"))
 
         Args:
             signal_type (str): Signal name to direct which signal to use
@@ -379,7 +482,7 @@ class signaler_property(property):
                              "The 'function argument is optional if you are using this as a function decorator.'")
 
         first = args[0]
-        if length != 3 and isinstance(first, str) and not hasattr(first, "__observables__"):
+        if length != 3 and isinstance(first, str) and not hasattr(first, "__signalers__"):
             # Method decorator
             return self._on_method_decorator(first, *args[1:])
         else:
@@ -398,7 +501,7 @@ class signaler_property(property):
 
     def _on_instance(self, instance, signal_type, func=None):
         """Connect the signal with the given callback function for the instance."""
-        callback = self.get_callback_manager(instance)
+        callback = self.get_signaler_instance(instance)
         if func is None:
             def wrapper(func):
                 callback.on(signal_type, func)
@@ -467,7 +570,7 @@ class signaler_property(property):
                              "The 'function argument is optional if you are using this as a function decorator.'")
 
         first = args[0]
-        if length != 3 and isinstance(first, str) and not hasattr(first, "__observables__"):
+        if length != 3 and isinstance(first, str) and not hasattr(first, "__signalers__"):
             # Method decorator
             return self._off_method_decorator(first, *args[1:])
         else:
@@ -480,331 +583,37 @@ class signaler_property(property):
 
     def _off_instance(self, instance, signal_type, func=None):
         """Disconnect the signal from the given callback function (or all if None was given) for the instance."""
-        callback = self.get_callback_manager(instance)
+        callback = self.get_signaler_instance(instance)
         return callback.off(signal_type, func)
 
-    # ===== Pre Delete =====
-    def connect_before_delete(self, func):
-        """Connect a callback function to the before_delete signal."""
-        if func not in self._before_delete_funcs:
-            self._before_delete_funcs.append(func)
-
-    def disconnect_before_delete(self, func=None):
-        """Disconnect from the before_delete signal.
+    def fire(self, *args, **kwargs):
+        """Trigger the callback functions connected to the signal.
 
         Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
+            instance (object): Object to connect the signal with.
+            signal_type (str): Signal name to direct which signal to use
+            *args, **kwargs: Callback function arguments
+
+        Args Alternative:
+            signal_type (str): Signal name to direct which signal to use
+            *args, **kwargs: Callback function arguments
         """
-        if func is None:
-            self._before_delete_funcs = []
+        length = len(args)
+        if length == 0:
+            raise ValueError("Invalid number of arguments given! Give either 'instance', 'signal_type', and '*args' "
+                             "or just a 'signal_type' and '*args'.")
+
+        instance = args[0]
+        if isinstance(instance, str):
+            signal_type = instance
+            instance = self
+            args = args[1:]
+        elif len(args) > 1:
+            instance = self.get_signaler_instance(instance)
+            signal_type = args[1]
+            args = args[2:]
         else:
-            try:
-                self._before_delete_funcs.remove(func)
-            except:
-                pass
+            raise ValueError("Invalid number of arguments given! Give either 'instance', 'signal_type', and '*args' "
+                             "or just a 'signal_type' and '*args'.")
 
-    # ===== Delete =====
-    def connect_delete(self, func):
-        """Connect a callback function to the delete signal."""
-        if func not in self._delete_funcs:
-            self._delete_funcs.append(func)
-
-    def disconnect_delete(self, func=None):
-        """Disconnect from the delete signal.
-
-        Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        if func is None:
-            self._delete_funcs = []
-        else:
-            try:
-                self._delete_funcs.remove(func)
-            except:
-                pass
-
-    # ===== Pre Change =====
-    def connect_before_change(self, func):
-        """Connect a callback function to the before_change signal."""
-        if func not in self._before_change_funcs:
-            self._before_change_funcs.append(func)
-
-    def disconnect_before_change(self, func=None):
-        """Disconnect from the before_change signal.
-
-        Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        if func is None:
-            self._before_change_funcs = []
-        else:
-            try:
-                self._before_change_funcs.remove(func)
-            except:
-                pass
-
-    # ===== Normal Post Change signal =====
-    def connect_change(self, func):
-        """Connect a callback function to the change signal."""
-        if func not in self._change_funcs:
-            self._change_funcs.append(func)
-
-    def disconnect_change(self, func=None):
-        """Disconnect from the change signal.
-
-        Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        if func is None:
-            self._change_funcs = []
-        else:
-            try:
-                self._change_funcs.remove(func)
-            except:
-                pass
-
-    connect = connect_change
-    disconnect = disconnect_change
-
-
-class ObservableCallbackManager(object):
-    """Replaces a property with this class that uses callback functions for before and after a value changes.
-
-    Signals (Callbacks):
-
-        * 'before_delete' - function should take no arguments
-        * 'delete' - function should take no arguments
-        * 'before_change' - function should take a single value argument
-        * 'change' - function should take a single value argument
-    """
-    SIGNALS = ["before_delete", "delete", "before_change", "change"]
-
-    def __init__(self, fget=None, fset=None, fdel=None, doc=None, check_change=True):
-        """Initialize like a property
-
-        Args:
-            fget (function/method)[None]: Getter method for the property
-            fset (function/method)[None]: Setter method for the property
-            fdel (function/method)[None]: Deleter method for the property
-            doc (str)[None]: Documentation for the property
-            check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
-        """
-        self.check_change = check_change
-        self.fget = fget
-        self.fset = fset
-        self.fdel = fdel
-        if doc is None and fget is not None:
-            doc = fget.__doc__
-        self.__doc__ = doc
-
-        self._before_delete_funcs = []
-        self._delete_funcs = []
-        self._before_change_funcs = []
-        self._change_funcs = []
-
-        super(ObservableCallbackManager, self).__init__()
-
-    # ===== Property methods =====
-    def get_value(self):
-        """Return the property value with the getter function."""
-        if self.fget is None:
-            raise AttributeError("unreadable attribute")
-        return self.fget()
-
-    def set_value(self, value):
-        """Set the property value with the setter function."""
-        if self.fset is None:
-            raise AttributeError("can't set attribute")
-
-        # Check if the new value is different from the current value
-        if self.check_change and self.fget:
-            val = self.get_value()
-            if val == value:
-                return
-
-        # Set the value
-        self.emit_before_change(value)
-        ret = self.fset(value)
-
-        # Get the new value from the getter if possible
-        new_val = value
-        if self.fget:
-            new_val = self.get_value()
-        self.emit_change(new_val)
-
-        return ret  # None usually
-
-    def del_value(self):
-        """Delete the property value with the deleter function."""
-        if self.fdel is None:
-            raise AttributeError("can't delete attribute")
-        self.emit_before_delete()
-        ret = self.fdel()
-        self.emit_delete()
-        return ret  # None usually
-
-    # ========== Connect Callback functions ==========
-    def get(self, signal_type):
-        """Return the callback methods for the given signal_type."""
-        return get_signal(self, signal_type)
-
-    def on(self, signal_type, func):
-        """Connect a callback function to a signal.
-
-        Args:
-            signal_type(str): Name of the signal. "before_delete", "delete", "before_change", or "change"
-            func (function/method): Callback function or method to connect to the signal.
-        """
-        on_signal(self, signal_type, func)
-
-    def off(self, signal_type, func=None):
-        """Disconnect a callback function from a signal.
-
-        Args:
-            signal_type(str): Name of the signal. "before_delete", "delete", "before_change", or "change"
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        off_signal(self, signal_type, func)
-
-    def fire(self, signal_type, *args, **kwargs):
-        """Trigger the signal, calling all callback functions for a signal.
-
-        Args:
-            signal_type(str): Name of the signal. "before_delete", "delete", "before_change", or "change"
-            *args (tuple): Arguments to pass to all callback functions.
-            **kwargs(dict): Named arguments to pass to all callback functions
-        """
-        emit_signal(self, signal_type, *args, **kwargs)
-
-    # ===== Pre Delete =====
-    def connect_before_delete(self, func):
-        """Connect a callback function to the before_delete signal."""
-        if func not in self._before_delete_funcs:
-            self._before_delete_funcs.append(func)
-
-    def disconnect_before_delete(self, func=None):
-        """Disconnect from the before_delete signal.
-
-        Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        if func is None:
-            self._before_delete_funcs = []
-        else:
-            try:
-                self._before_delete_funcs.remove(func)
-            except:
-                pass
-
-    def emit_before_delete(self):
-        """Trigger the before_delete signal, calling all callback functions for a signal.
-
-        Args:
-            *args (tuple): Arguments to pass to all callback functions.
-            **kwargs(dict): Named arguments to pass to all callback functions
-        """
-        for func in self._before_delete_funcs:
-            func()
-
-    # ===== Delete =====
-    def connect_delete(self, func):
-        """Connect a callback function to the delete signal."""
-        if func not in self._delete_funcs:
-            self._delete_funcs.append(func)
-
-    def disconnect_delete(self, func=None):
-        """Disconnect from the delete signal.
-
-        Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        if func is None:
-            self._delete_funcs = []
-        else:
-            try:
-                self._delete_funcs.remove(func)
-            except:
-                pass
-
-    def emit_delete(self):
-        """Trigger the delete signal, calling all callback functions for a signal.
-
-        Args:
-            *args (tuple): Arguments to pass to all callback functions.
-            **kwargs(dict): Named arguments to pass to all callback functions
-        """
-        for func in self._delete_funcs:
-            func()
-
-    # ===== Pre Change =====
-    def connect_before_change(self, func):
-        """Connect a callback function to the before_change signal."""
-        if func not in self._before_change_funcs:
-            self._before_change_funcs.append(func)
-
-    def disconnect_before_change(self, func=None):
-        """Disconnect from the before_change signal.
-
-        Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        if func is None:
-            self._before_change_funcs = []
-        else:
-            try:
-                self._before_change_funcs.remove(func)
-            except:
-                pass
-
-    def emit_before_change(self, value):
-        """Trigger the before_change signal, calling all callback functions for a signal.
-
-        Args:
-            *args (tuple): Arguments to pass to all callback functions.
-            **kwargs(dict): Named arguments to pass to all callback functions
-        """
-        for func in self._before_change_funcs:
-            func(value)
-
-    # ===== Normal Post Change signal =====
-    def connect_change(self, func):
-        """Connect a callback function to the change signal."""
-        if func not in self._change_funcs:
-            self._change_funcs.append(func)
-
-    def disconnect_change(self, func=None):
-        """Disconnect from the change signal.
-
-        Args:
-            func (function/method)[None]: Callback function or method to disconnect from the signal.
-                None removes all callback functions.
-        """
-        if func is None:
-            self._change_funcs = []
-        else:
-            try:
-                self._change_funcs.remove(func)
-            except:
-                pass
-
-    def emit_change(self, value):
-        """Trigger the change signal, calling all callback functions for a signal.
-
-        Args:
-            *args (tuple): Arguments to pass to all callback functions.
-            **kwargs(dict): Named arguments to pass to all callback functions
-        """
-        for func in self._change_funcs:
-            func(value)
-
-    connect = connect_change
-    disconnect = disconnect_change
-    emit = emit_change
+        return fire_signal(instance, signal_type, *args, **kwargs)
