@@ -19,7 +19,7 @@ There are 4 main functions to use the signals.
     * fire - Call all callback functions that are associated with a signal
     
 ## Example - signaler
-
+Javascript like events for functions and objects.
 ```python
 from event_signal import signaler
 
@@ -59,6 +59,7 @@ t.set_x(3)
 ```
 
 ## Example - signaler_property
+A property with signaler capabilities
 ```python
 from event_signal import signaler_property
 
@@ -99,6 +100,8 @@ t = 3
 ```
 
 ## Example - MethodObserver
+Inheritable class or metaclass that makes every function/method in a class a signaler.
+
 ```python
 from event_signal import MethodObserver
 
@@ -134,6 +137,7 @@ t.set_x(4)
 ```
 
 ## Example - Signal
+Qt like signal.
 ```python
 from event_signal import Signal
 
