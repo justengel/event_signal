@@ -3,8 +3,8 @@ from .signal_funcs import get_signal, on_signal, off_signal, emit_signal
 
 
 class signaler_instance(object):
-    """Fake function that allows connecting to pre_change and change signals."""
-    SIGNALS = ["pre_change", "change"]
+    """Fake function that allows connecting to before_change and change signals."""
+    SIGNALS = ["before_change", "change"]
 
     def __init__(self, func):
         super().__init__()
@@ -19,11 +19,11 @@ class signaler_instance(object):
         except AttributeError:
             pass
 
-        self._pre_change_funcs = []
+        self._before_change_funcs = []
         self._change_funcs = []
 
     def __call__(self, *args, **kwargs):
-        self.emit_pre_change(*args, **kwargs)
+        self.emit_before_change(*args, **kwargs)
         ret = self.func(*args, **kwargs)
         self.emit_change(*args, **kwargs)
         return ret
@@ -126,21 +126,21 @@ class signaler_instance(object):
         emit_signal(self, signal_type, *args, **kwargs)
 
     # ===== Pre Change =====
-    def connect_pre_change(self, func):
-        if func not in self._pre_change_funcs:
-            self._pre_change_funcs.append(func)
+    def connect_before_change(self, func):
+        if func not in self._before_change_funcs:
+            self._before_change_funcs.append(func)
 
-    def disconnect_pre_change(self, func=None):
+    def disconnect_before_change(self, func=None):
         if func is None:
-            self._pre_change_funcs = []
+            self._before_change_funcs = []
         else:
             try:
-                self._pre_change_funcs.remove(func)
+                self._before_change_funcs.remove(func)
             except:
                 pass
 
-    def emit_pre_change(self, *args, **kwargs):
-        for func in self._pre_change_funcs:
+    def emit_before_change(self, *args, **kwargs):
+        for func in self._before_change_funcs:
             func(*args, **kwargs)
 
     # ===== Normal Post Change signal =====
@@ -185,8 +185,8 @@ class signaler(signaler_instance):
             if self.func:
                 func = self.func.__get__(instance, instance.__class__)
             instance.__signalers__[self] = signaler_instance(func)
-            instance.__signalers__[self]._pre_change_funcs = [func.__get__(instance, instance.__class__)
-                                                              for func in self._pre_change_funcs]
+            instance.__signalers__[self]._before_change_funcs = [func.__get__(instance, instance.__class__)
+                                                              for func in self._before_change_funcs]
             instance.__signalers__[self]._change_funcs = [func.__get__(instance, instance.__class__)
                                                           for func in self._change_funcs]
 

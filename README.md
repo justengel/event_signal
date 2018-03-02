@@ -5,7 +5,7 @@ This library was created to help maintain when variables are changed and when fu
 There are 4 main utilities provided
 
     * signaler - Function decorator to help observe functions
-    * observer_property - Custom property that helps observe when a property value is changed or deleted.
+    * signaler_property - Custom property that helps observe when a property value is changed or deleted.
     * MethodObserver - class mixin to make all function observable
     * Signal - Similar to Qt's signal without requiring PyQT or PySide
     
@@ -35,7 +35,7 @@ class XTest(object):
     def set_x(self, x):
         self._x = x
         
-    @set_x.on("pre_change")
+    @set_x.on("before_change")
     def x_changing(self, x):
         print("x is changing")
         
@@ -52,22 +52,22 @@ t.set_x(2)
 # x is changing
 # x changed 2
 # new signal
-t.set_x.off("pre_change", t.x_changing)
+t.set_x.off("before_change", t.x_changing)
 t.set_x(3)
 # x changed 3
 # new signal
 ```
 
-## Example - observer_property
+## Example - signaler_property
 ```python
-from event_signal import observer_property
+from event_signal import signaler_property
 
 
 class XTest(object):
     def __init__(self, x=0):
         self._x = x
 
-    @observer_property
+    @signaler_property
     def x(self):
         return self._x
 
@@ -75,7 +75,7 @@ class XTest(object):
     def x(self, x):
         self._x = x
         
-    @x.on("pre_change")
+    @x.on("before_change")
     def x_changing(self, x):
         print("x is changing")
         
@@ -92,7 +92,7 @@ t.x = 2
 # x is changing
 # x changed 2
 # new signal
-XTest.x.off(t, "pre_change", t.x_changing)
+XTest.x.off(t, "before_change", t.x_changing)
 t = 3
 # x changed 3
 # new signal
@@ -124,11 +124,11 @@ t.set_x(1)
 t.set_x.on("change", t.x_changed)
 t.set_x(2)
 # x changed 2
-t.set_x.on("pre_change", t.x_changing)
+t.set_x.on("before_change", t.x_changing)
 t.set_x(3)
 # x is changing
 # x changed 3
-t.set_x.off("pre_change", t.x_changing)
+t.set_x.off("before_change", t.x_changing)
 t.set_x(4)
 # x changed 4
 ```

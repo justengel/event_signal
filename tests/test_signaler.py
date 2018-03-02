@@ -1,7 +1,7 @@
 from event_signal import signaler
 
 
-def test_simple_pre_change_change():
+def test_simple_before_change_change():
     class XTest(object):
         def __init__(self, x=0):
             self._x = x
@@ -15,8 +15,8 @@ def test_simple_pre_change_change():
         def set_x(self, x):
             self._x = x
 
-        @set_x.on("pre_change")
-        def test_pre_change(self, value):
+        @set_x.on("before_change")
+        def test_before_change(self, value):
             self.test = value
 
         @set_x.on("change")
@@ -54,7 +54,7 @@ def test_signaler_instances():
         t.test = value
     def set_test2(value):
         t.test2 = value
-    t.set_x.on("pre_change", set_test)
+    t.set_x.on("before_change", set_test)
     t.set_x.on("change", set_test2)
 
     assert t.get_x() == 0
@@ -101,7 +101,7 @@ def test_chaining():
             self.set_x(x)
             self.set_y(y)
 
-        @set_x.on("pre_change")
+        @set_x.on("before_change")
         def changing_x_value(self, value):
             # print('X value is about to change')
             self._x_pre.append(value)
@@ -111,7 +111,7 @@ def test_chaining():
             # print('X value has changed', self.get_x(), self.get_y())
             self._x_post.append(value)
 
-        @set_y.on("pre_change")
+        @set_y.on("before_change")
         def changing_y_value(self, value):
             # print('Y value is about to change')
             self._y_pre.append(value)
@@ -121,8 +121,8 @@ def test_chaining():
             # print('Y value has changed', self.get_x(), self.get_y())
             self._y_post.append(value)
 
-        @set_x.on("pre_change")
-        @set_y.on("pre_change")
+        @set_x.on("before_change")
+        @set_y.on("before_change")
         def changing_values(self, value):
             self._xy_pre.append(value)
 
@@ -131,7 +131,7 @@ def test_chaining():
         def changed_values(self, value):
             self._xy_post.append(value)
 
-        @move.on("pre_change")
+        @move.on("before_change")
         def moving(self, *args):
             # print("Attempting to move to", *args)
             self._move_pre.append(args)
@@ -184,7 +184,7 @@ def test_chaining():
     assert p._move_pre == [("x2", "y2")]
     assert p._move_post == [("x2", "y2")]
 
-    p.set_x.off("pre_change")
+    p.set_x.off("before_change")
     p.move("x3", "y3")
     assert p._xy_pre == ["x1", "y1", "x2", "y2", "y3"]  # Note: x3 not updated
     assert p._xy_post == ["x1", "y1", "x2", "y2", "x3", "y3"]
@@ -208,7 +208,7 @@ def test_chaining():
 
 
 if __name__ == '__main__':
-    test_simple_pre_change_change()
+    test_simple_before_change_change()
     test_signaler_instances()
     test_chaining()
     print("All tests passed!")

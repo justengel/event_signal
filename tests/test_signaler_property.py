@@ -1,4 +1,4 @@
-from event_signal import observe_property
+from event_signal import signaler_property
 
 
 def test_property():
@@ -6,7 +6,7 @@ def test_property():
         def __init__(self, x=0):
             self._x = x
 
-        @observe_property
+        @signaler_property
         def x(self):
             return self._x
 
@@ -36,10 +36,10 @@ def test_no_setter():
     class XTest(object):
         def __init__(self, x=0):
             self._x = x
-            self._pre_val = None
+            self._before_val = None
             self._post_val = None
 
-        @observe_property
+        @signaler_property
         def x(self):
             return self._x
 
@@ -55,10 +55,10 @@ def test_no_deleter():
     class XTest(object):
         def __init__(self, x=0):
             self._x = x
-            self._pre_val = None
+            self._before_val = None
             self._post_val = None
 
-        @observe_property
+        @signaler_property
         def x(self):
             return self._x
 
@@ -66,9 +66,9 @@ def test_no_deleter():
         def x(self, value):
             self._x = value
 
-        @x.on("pre_delete")
+        @x.on("before_delete")
         def x_deleting(self):
-            self._pre_val = True
+            self._before_val = True
 
         @x.on("delete")
         def x_deleted(self):
@@ -86,10 +86,10 @@ def test_change():
     class XTest(object):
         def __init__(self, x=0):
             self._x = x
-            self._pre_val = None
+            self._before_val = None
             self._post_val = None
 
-        @observe_property
+        @signaler_property
         def x(self):
             return self._x
 
@@ -97,9 +97,9 @@ def test_change():
         def x(self, value):
             self._x = value
 
-        @x.on("pre_change")
+        @x.on("before_change")
         def x_changing(self, value):
-            self._pre_val = value
+            self._before_val = value
 
         @x.on("change")
         def x_changed(self, value):
@@ -107,27 +107,27 @@ def test_change():
 
     t = XTest()
     assert t.x == 0
-    assert t._pre_val is None
+    assert t._before_val is None
     assert t._post_val is None
 
     value = 1
     t.x = value
     assert t.x == value
-    assert t._pre_val == value
+    assert t._before_val == value
     assert t._post_val == value
 
     XTest.x.off(t, "change", t.x_changed)
     new_value = 2
     t.x = new_value
     assert t.x == new_value
-    assert t._pre_val == new_value
+    assert t._before_val == new_value
     assert t._post_val == value
 
-    XTest.x.off(t, "pre_change", t.x_changing)
+    XTest.x.off(t, "before_change", t.x_changing)
     new_value2 = 3
     t.x = new_value2
     assert t.x == new_value2
-    assert t._pre_val == new_value
+    assert t._before_val == new_value
     assert t._post_val == value
 
 
@@ -135,10 +135,10 @@ def test_delete():
     class XTest(object):
         def __init__(self, x=0):
             self._x = x
-            self._pre_val = None
+            self._before_val = None
             self._post_val = None
 
-        @observe_property
+        @signaler_property
         def x(self):
             return self._x
 
@@ -150,9 +150,9 @@ def test_delete():
         def x(self):
             del self._x
 
-        @x.on("pre_delete")
+        @x.on("before_delete")
         def x_deleting(self):
-            self._pre_val = True
+            self._before_val = True
 
         @x.on("delete")
         def x_deleted(self):
@@ -160,7 +160,7 @@ def test_delete():
 
     t = XTest()
     assert t.x == 0
-    assert t._pre_val is None
+    assert t._before_val is None
     assert t._post_val is None
 
     del t.x
@@ -169,14 +169,14 @@ def test_delete():
         raise AssertionError("t.x should not exist. The deleter failed.")
     except AttributeError:
         pass
-    assert t._pre_val == True
+    assert t._before_val == True
     assert t._post_val == True
 
     t._x = 0
     assert t.x == 0
 
     XTest.x.off(t, "delete", t.x_deleted)
-    t._pre_val = None
+    t._before_val = None
     t._post_val = None
     del t.x
     try:
@@ -184,14 +184,14 @@ def test_delete():
         raise AssertionError("t.x should not exist. The deleter failed.")
     except AttributeError:
         pass
-    assert t._pre_val == True
+    assert t._before_val == True
     assert t._post_val is None
 
     t._x = 0
     assert t.x == 0
 
-    XTest.x.off(t, "pre_delete")
-    t._pre_val = None
+    XTest.x.off(t, "before_delete")
+    t._before_val = None
     t._post_val = None
     del t.x
     try:
@@ -199,7 +199,7 @@ def test_delete():
         raise AssertionError("t.x should not exist. The deleter failed.")
     except AttributeError:
         pass
-    assert t._pre_val is None
+    assert t._before_val is None
     assert t._post_val is None
 
 

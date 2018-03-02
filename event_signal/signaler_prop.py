@@ -1,7 +1,7 @@
 """
 Create an observable property. Observable properties allow users to set multiple callback functions to be called
-before a value is changed with "pre_change", after a value is changed with "change", before a property is deleted
-with "pre_delete", and after a property is deleted with "delete".
+before a value is changed with "before_change", after a value is changed with "change", before a property is deleted
+with "before_delete", and after a property is deleted with "delete".
 
 Example:
     .. code-block:: python
@@ -35,8 +35,8 @@ Example:
             def y(self):
                 del self._y
 
-            @x.on("pre_change")
-            @y.on("pre_change")
+            @x.on("before_change")
+            @y.on("before_change")
             def moving(self, *args):
                 print("Moving")
 
@@ -45,13 +45,13 @@ Example:
             def moving(self, *args):
                 print("Moved point", repr(self))
 
-            @x.on("pre_delete")
-            @y.on("pre_delete")
+            @x.on("before_delete")
+            @y.on("before_delete")
             def deleting(self)
                 print("Deleting value")
 
-            @x.on("pre_delete")
-            @y.on("pre_delete")
+            @x.on("before_delete")
+            @y.on("before_delete")
             def deleted(self)
                 print("Deleted value")
 
@@ -83,20 +83,20 @@ Example:
 from .signal_funcs import get_signal, on_signal, off_signal, emit_signal
 
 
-__all__ = ["observe_property"]
+__all__ = ["signaler_property"]
 
 
-class observe_property(property):
+class signaler_property(property):
     """Property that is observable through callback functions.
 
     Add a callback to function to be called when a before a property changes or after a property changes. Callbacks
-    can be added for 'pre_change', 'change', 'pre_delete', and 'delete'.
+    can be added for 'before_change', 'change', 'before_delete', and 'delete'.
 
     Signals (Callbacks):
 
-        * 'pre_delete' - function should take no arguments
+        * 'before_delete' - function should take no arguments
         * 'delete' - function should take no arguments
-        * 'pre_change' - function should take a single value argument
+        * 'before_change' - function should take a single value argument
         * 'change' - function should take a single value argument
 
     Exammple:
@@ -105,7 +105,7 @@ class observe_property(property):
 
             class MyClass:
                 # Just like a normal property
-                @observe_property
+                @signaler_property
                 def x(self):
                     return self._x
 
@@ -118,7 +118,7 @@ class observe_property(property):
                     del self._x
 
                 # Connect callback methods to observe what happens to the property
-                @x.on("pre_change")
+                @x.on("before_change")
                 def about_to_change_x(self, *args):
                     print("x is about to change")
 
@@ -126,7 +126,7 @@ class observe_property(property):
                 def x_changed(self, value):
                     print("x changed")
 
-                @x.on("pre_delete")
+                @x.on("before_delete")
                 def x_about_to_be_deleted(self):
                     print("x is going to go away now")
 
@@ -142,7 +142,7 @@ class observe_property(property):
             m.x = 2
             print(m.x)
     """
-    SIGNALS = ["pre_delete", "delete", "pre_change", "change"]
+    SIGNALS = ["before_delete", "delete", "before_change", "change"]
 
     def __init__(self, fget=None, fset=None, fdel=None, doc=None, check_change=True):
         """Initialize like a property
@@ -154,14 +154,14 @@ class observe_property(property):
             doc (str)[None]: Documentation for the property
             check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
         """
-        self._pre_delete_funcs = []
+        self._before_delete_funcs = []
         self._delete_funcs = []
-        self._pre_change_funcs = []
+        self._before_change_funcs = []
         self._change_funcs = []
 
         self.check_change = check_change
 
-        super(observe_property, self).__init__(fget=fget, fset=fset, fdel=fdel, doc=doc)
+        super(signaler_property, self).__init__(fget=fget, fset=fset, fdel=fdel, doc=doc)
         try:
             self.__name__ = self.fget.__name__
         except AttributeError:
@@ -193,12 +193,12 @@ class observe_property(property):
                 fdel = self.fdel.__get__(instance, instance.__class__)
             instance.__observables__[self] = ObservableCallbackManager(fget=fget, fset=fset, fdel=fdel,
                                                                 doc=doc, check_change=self.check_change)
-            instance.__observables__[self]._pre_delete_funcs = [func.__get__(instance, instance.__class__)
-                                                                for func in self._pre_delete_funcs]
+            instance.__observables__[self]._before_delete_funcs = [func.__get__(instance, instance.__class__)
+                                                                for func in self._before_delete_funcs]
             instance.__observables__[self]._delete_funcs = [func.__get__(instance, instance.__class__)
                                                             for func in self._delete_funcs]
-            instance.__observables__[self]._pre_change_funcs = [func.__get__(instance, instance.__class__)
-                                                                for func in self._pre_change_funcs]
+            instance.__observables__[self]._before_change_funcs = [func.__get__(instance, instance.__class__)
+                                                                for func in self._before_change_funcs]
             instance.__observables__[self]._change_funcs = [func.__get__(instance, instance.__class__)
                                                             for func in self._change_funcs]
 
@@ -229,10 +229,10 @@ class observe_property(property):
     # ===== Decorators =====
     def getter(self, fget):
         """Decorator to add a getter method. Works just like @property.getter."""
-        obj = super(observe_property, self).getter(fget)
-        obj._pre_delete_funcs = self._pre_delete_funcs
+        obj = super(signaler_property, self).getter(fget)
+        obj._before_delete_funcs = self._before_delete_funcs
         obj._delete_funcs = self._delete_funcs
-        obj._pre_change_funcs = self._pre_change_funcs
+        obj._before_change_funcs = self._before_change_funcs
         obj._change_funcs = self._change_funcs
         obj.check_change = self.check_change
         try:
@@ -243,20 +243,20 @@ class observe_property(property):
 
     def setter(self, fset):
         """Decorator to add a setter method. Works just like @property.setter."""
-        obj = super(observe_property, self).setter(fset)
-        obj._pre_delete_funcs = self._pre_delete_funcs
+        obj = super(signaler_property, self).setter(fset)
+        obj._before_delete_funcs = self._before_delete_funcs
         obj._delete_funcs = self._delete_funcs
-        obj._pre_change_funcs = self._pre_change_funcs
+        obj._before_change_funcs = self._before_change_funcs
         obj._change_funcs = self._change_funcs
         obj.check_change = self.check_change
         return obj
 
     def deleter(self, fdel):
         """Decorator to add a deleter method. Works just like @property.deleter."""
-        obj = super(observe_property, self).deleter(fdel)
-        obj._pre_delete_funcs = self._pre_delete_funcs
+        obj = super(signaler_property, self).deleter(fdel)
+        obj._before_delete_funcs = self._before_delete_funcs
         obj._delete_funcs = self._delete_funcs
-        obj._pre_change_funcs = self._pre_change_funcs
+        obj._before_change_funcs = self._before_change_funcs
         obj._change_funcs = self._change_funcs
         obj.check_change = self.check_change
         return obj
@@ -272,7 +272,7 @@ class observe_property(property):
             .. code-block:: python
 
                 class MyClass:
-                    @observe_property
+                    @signaler_property
                     def x(self):
                         return self._x
 
@@ -280,18 +280,18 @@ class observe_property(property):
                     def x(self, value):
                         self._x = value
 
-                    @x.on("pre_change")
+                    @x.on("before_change")
                     def about_to_change_x(*args):
                         print("x is about to change")
 
-                print(MyClass.x.get("pre_change"))
+                print(MyClass.x.get("before_change"))
 
             If user gives 'instance', 'signal_type', and (optional) 'func' arguments.
 
             .. code-block:: python
 
                 class MyClass:
-                    @observe_property
+                    @signaler_property
                     def x(self):
                         return self._x
 
@@ -299,12 +299,12 @@ class observe_property(property):
                     def x(self, value):
                         self._x = value
 
-                    @x.on("pre_change")
+                    @x.on("before_change")
                     def about_to_change_x(*args):
                         print("x is about to change")
 
                 obj = MyClass()
-                print(MyClass.x.get(obj, "pre_change"))
+                print(MyClass.x.get(obj, "before_change"))
 
         Args:
             signal_type (str): Signal name to direct which signal to use
@@ -335,7 +335,7 @@ class observe_property(property):
             .. code-block:: python
 
                 class MyClass:
-                    @observe_property
+                    @signaler_property
                     def x(self):
                         return self._x
 
@@ -343,7 +343,7 @@ class observe_property(property):
                     def x(self, value):
                         self._x = value
 
-                    @x.on("pre_change")
+                    @x.on("before_change")
                     def about_to_change_x(*args):
                         print("x is about to change")
 
@@ -352,7 +352,7 @@ class observe_property(property):
             .. code-block:: python
 
                 class MyClass:
-                    @observe_property
+                    @signaler_property
                     def x(self):
                         return self._x
 
@@ -361,7 +361,7 @@ class observe_property(property):
                         self._x = value
 
                 obj = MyClass()
-                MyClass.x.on(obj, "pre_change", lambda *args: print("x is about to change"))
+                MyClass.x.on(obj, "before_change", lambda *args: print("x is about to change"))
 
         Args:
             signal_type (str): Signal name to direct which signal to use
@@ -417,7 +417,7 @@ class observe_property(property):
             .. code-block:: python
 
                 class MyClass:
-                    @observe_property
+                    @signaler_property
                     def x(self):
                         return self._x
 
@@ -425,18 +425,18 @@ class observe_property(property):
                     def x(self, value):
                         self._x = value
 
-                    @x.on("pre_change")
+                    @x.on("before_change")
                     def notify_x_about_to_change(value):
                         print("x is about to change to ", value)
 
-                    x.off("pre_change", notify_x_about_to_change)   # Disconnect the callback method
+                    x.off("before_change", notify_x_about_to_change)   # Disconnect the callback method
 
             If user give 'instance', 'signal_type', and (optional) 'func' arguments.
 
             .. code-block:: python
 
                 class MyClass:
-                    @observe_property
+                    @signaler_property
                     def x(self):
                         return self._x
 
@@ -444,12 +444,12 @@ class observe_property(property):
                     def x(self, value):
                         self._x = value
 
-                    @x.on("pre_change")
+                    @x.on("before_change")
                     def notify_x_about_to_change(value):
                         print("x is about to change to ", value)
 
                 obj = MyClass()
-                MyClass.x.off(obj, "pre_change", obj.notify_x_about_to_change)
+                MyClass.x.off(obj, "before_change", obj.notify_x_about_to_change)
 
         Args:
             signal_type (str): Signal name to direct which signal to use
@@ -484,23 +484,23 @@ class observe_property(property):
         return callback.off(signal_type, func)
 
     # ===== Pre Delete =====
-    def connect_pre_delete(self, func):
-        """Connect a callback function to the pre_delete signal."""
-        if func not in self._pre_delete_funcs:
-            self._pre_delete_funcs.append(func)
+    def connect_before_delete(self, func):
+        """Connect a callback function to the before_delete signal."""
+        if func not in self._before_delete_funcs:
+            self._before_delete_funcs.append(func)
 
-    def disconnect_pre_delete(self, func=None):
-        """Disconnect from the pre_delete signal.
+    def disconnect_before_delete(self, func=None):
+        """Disconnect from the before_delete signal.
 
         Args:
             func (function/method)[None]: Callback function or method to disconnect from the signal.
                 None removes all callback functions.
         """
         if func is None:
-            self._pre_delete_funcs = []
+            self._before_delete_funcs = []
         else:
             try:
-                self._pre_delete_funcs.remove(func)
+                self._before_delete_funcs.remove(func)
             except:
                 pass
 
@@ -526,23 +526,23 @@ class observe_property(property):
                 pass
 
     # ===== Pre Change =====
-    def connect_pre_change(self, func):
-        """Connect a callback function to the pre_change signal."""
-        if func not in self._pre_change_funcs:
-            self._pre_change_funcs.append(func)
+    def connect_before_change(self, func):
+        """Connect a callback function to the before_change signal."""
+        if func not in self._before_change_funcs:
+            self._before_change_funcs.append(func)
 
-    def disconnect_pre_change(self, func=None):
-        """Disconnect from the pre_change signal.
+    def disconnect_before_change(self, func=None):
+        """Disconnect from the before_change signal.
 
         Args:
             func (function/method)[None]: Callback function or method to disconnect from the signal.
                 None removes all callback functions.
         """
         if func is None:
-            self._pre_change_funcs = []
+            self._before_change_funcs = []
         else:
             try:
-                self._pre_change_funcs.remove(func)
+                self._before_change_funcs.remove(func)
             except:
                 pass
 
@@ -576,12 +576,12 @@ class ObservableCallbackManager(object):
 
     Signals (Callbacks):
 
-        * 'pre_delete' - function should take no arguments
+        * 'before_delete' - function should take no arguments
         * 'delete' - function should take no arguments
-        * 'pre_change' - function should take a single value argument
+        * 'before_change' - function should take a single value argument
         * 'change' - function should take a single value argument
     """
-    SIGNALS = ["pre_delete", "delete", "pre_change", "change"]
+    SIGNALS = ["before_delete", "delete", "before_change", "change"]
 
     def __init__(self, fget=None, fset=None, fdel=None, doc=None, check_change=True):
         """Initialize like a property
@@ -601,9 +601,9 @@ class ObservableCallbackManager(object):
             doc = fget.__doc__
         self.__doc__ = doc
 
-        self._pre_delete_funcs = []
+        self._before_delete_funcs = []
         self._delete_funcs = []
-        self._pre_change_funcs = []
+        self._before_change_funcs = []
         self._change_funcs = []
 
         super(ObservableCallbackManager, self).__init__()
@@ -627,7 +627,7 @@ class ObservableCallbackManager(object):
                 return
 
         # Set the value
-        self.emit_pre_change(value)
+        self.emit_before_change(value)
         ret = self.fset(value)
 
         # Get the new value from the getter if possible
@@ -642,7 +642,7 @@ class ObservableCallbackManager(object):
         """Delete the property value with the deleter function."""
         if self.fdel is None:
             raise AttributeError("can't delete attribute")
-        self.emit_pre_delete()
+        self.emit_before_delete()
         ret = self.fdel()
         self.emit_delete()
         return ret  # None usually
@@ -656,7 +656,7 @@ class ObservableCallbackManager(object):
         """Connect a callback function to a signal.
 
         Args:
-            signal_type(str): Name of the signal. "pre_delete", "delete", "pre_change", or "change"
+            signal_type(str): Name of the signal. "before_delete", "delete", "before_change", or "change"
             func (function/method): Callback function or method to connect to the signal.
         """
         on_signal(self, signal_type, func)
@@ -665,7 +665,7 @@ class ObservableCallbackManager(object):
         """Disconnect a callback function from a signal.
 
         Args:
-            signal_type(str): Name of the signal. "pre_delete", "delete", "pre_change", or "change"
+            signal_type(str): Name of the signal. "before_delete", "delete", "before_change", or "change"
             func (function/method)[None]: Callback function or method to disconnect from the signal.
                 None removes all callback functions.
         """
@@ -675,41 +675,41 @@ class ObservableCallbackManager(object):
         """Trigger the signal, calling all callback functions for a signal.
 
         Args:
-            signal_type(str): Name of the signal. "pre_delete", "delete", "pre_change", or "change"
+            signal_type(str): Name of the signal. "before_delete", "delete", "before_change", or "change"
             *args (tuple): Arguments to pass to all callback functions.
             **kwargs(dict): Named arguments to pass to all callback functions
         """
         emit_signal(self, signal_type, *args, **kwargs)
 
     # ===== Pre Delete =====
-    def connect_pre_delete(self, func):
-        """Connect a callback function to the pre_delete signal."""
-        if func not in self._pre_delete_funcs:
-            self._pre_delete_funcs.append(func)
+    def connect_before_delete(self, func):
+        """Connect a callback function to the before_delete signal."""
+        if func not in self._before_delete_funcs:
+            self._before_delete_funcs.append(func)
 
-    def disconnect_pre_delete(self, func=None):
-        """Disconnect from the pre_delete signal.
+    def disconnect_before_delete(self, func=None):
+        """Disconnect from the before_delete signal.
 
         Args:
             func (function/method)[None]: Callback function or method to disconnect from the signal.
                 None removes all callback functions.
         """
         if func is None:
-            self._pre_delete_funcs = []
+            self._before_delete_funcs = []
         else:
             try:
-                self._pre_delete_funcs.remove(func)
+                self._before_delete_funcs.remove(func)
             except:
                 pass
 
-    def emit_pre_delete(self):
-        """Trigger the pre_delete signal, calling all callback functions for a signal.
+    def emit_before_delete(self):
+        """Trigger the before_delete signal, calling all callback functions for a signal.
 
         Args:
             *args (tuple): Arguments to pass to all callback functions.
             **kwargs(dict): Named arguments to pass to all callback functions
         """
-        for func in self._pre_delete_funcs:
+        for func in self._before_delete_funcs:
             func()
 
     # ===== Delete =====
@@ -744,34 +744,34 @@ class ObservableCallbackManager(object):
             func()
 
     # ===== Pre Change =====
-    def connect_pre_change(self, func):
-        """Connect a callback function to the pre_change signal."""
-        if func not in self._pre_change_funcs:
-            self._pre_change_funcs.append(func)
+    def connect_before_change(self, func):
+        """Connect a callback function to the before_change signal."""
+        if func not in self._before_change_funcs:
+            self._before_change_funcs.append(func)
 
-    def disconnect_pre_change(self, func=None):
-        """Disconnect from the pre_change signal.
+    def disconnect_before_change(self, func=None):
+        """Disconnect from the before_change signal.
 
         Args:
             func (function/method)[None]: Callback function or method to disconnect from the signal.
                 None removes all callback functions.
         """
         if func is None:
-            self._pre_change_funcs = []
+            self._before_change_funcs = []
         else:
             try:
-                self._pre_change_funcs.remove(func)
+                self._before_change_funcs.remove(func)
             except:
                 pass
 
-    def emit_pre_change(self, value):
-        """Trigger the pre_change signal, calling all callback functions for a signal.
+    def emit_before_change(self, value):
+        """Trigger the before_change signal, calling all callback functions for a signal.
 
         Args:
             *args (tuple): Arguments to pass to all callback functions.
             **kwargs(dict): Named arguments to pass to all callback functions
         """
-        for func in self._pre_change_funcs:
+        for func in self._before_change_funcs:
             func(value)
 
     # ===== Normal Post Change signal =====
