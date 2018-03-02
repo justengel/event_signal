@@ -33,12 +33,12 @@ if __name__ == "__main__":
 
     setup(
         name="event_signal",
-        version="1.0.0",
+        version="1.0.2",
         description="Library to help notify when something has changed.",
         url="https://github.com/HashSplat/event_signal",
-        download_url="https://github.com/HashSplat/event_signal/archive/v1.0.0.tar.gz",
+        download_url="https://github.com/HashSplat/event_signal/archive/v1.0.2.tar.gz",
 
-        keywords=["signal", "observer", "signaler"],
+        keywords=["signal", "observer", "signaler", "event", "javascript events"],
 
         author="Justin Engel",
         author_email="jtengel08@gmail.com",
