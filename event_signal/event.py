@@ -77,24 +77,24 @@ class CallbackManager:
     """
 
     def __init__(self, *args, **kwargs):
-        self._change_funcs = []
+        self.event_signals = {"change": []}
         self.args = args
         self.kwargs = kwargs
     # enc Constructor
 
     def connect(self, func):
         """Add a callback function to be called when an event happens."""
-        if func not in self._change_funcs:
-            self._change_funcs.append(func)
+        if func not in self.event_signals["change"]:
+            self.event_signals["change"].append(func)
     # end connect
 
     def disconnect(self, func=None):
         """Disconnect a callback function or all callback functions if None is given."""
         if func is None:
-            self._change_funcs = []
+            self.event_signals["change"] = []
         else:
             try:
-                self._change_funcs.remove(func)
+                self.event_signals["change"].remove(func)
             except:
                 pass
     # end disconnect
@@ -129,7 +129,7 @@ class CallbackManager:
     def __call__(self, *args, **kwargs):
         """Trigger the event (Call all of the CallbackManager's functions)."""
         # self.check_arguments(*args, **kwargs)
-        for func in self._change_funcs:
+        for func in self.event_signals["change"]:
             func(*args, **kwargs)
     # end __call__
 # end class CallbackManager
