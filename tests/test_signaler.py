@@ -35,6 +35,35 @@ def test_simple_before_change_change():
     assert t.test2 == value
 
 
+def test_signaler_getter():
+    class XTest(object):
+        def __init__(self, x=0):
+            self._x = x
+            self.test = None
+
+        def get_x(self):
+            return "GETTER VALUE"
+
+        @signaler(getter=get_x)
+        def set_x(self, x):
+            self._x = x
+
+        @set_x.on("change")
+        def test_getter(self, value):
+            self.test = value
+
+    t = XTest()
+    assert t.get_x() == "GETTER VALUE"
+    assert t._x == 0
+    assert t.test is None
+
+    value = 1
+    t.set_x(value)
+    assert t.get_x() == "GETTER VALUE"
+    assert t._x == value
+    assert t.test == "GETTER VALUE"
+
+
 def test_signaler_instances():
     class XTest(object):
         def __init__(self, x=0):
@@ -209,6 +238,7 @@ def test_chaining():
 
 if __name__ == '__main__':
     test_simple_before_change_change()
+    test_signaler_getter
     test_signaler_instances()
     test_chaining()
     print("All tests passed!")

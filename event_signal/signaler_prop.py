@@ -270,11 +270,7 @@ class signaler_property(property, SignalerInstance):
             check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
         """
         super(signaler_property, self).__init__(fget=fget, fset=fset, fdel=fdel, doc=doc)
-        self.event_signals = {}
-        self.event_signals["before_delete"] = []
-        self.event_signals["delete"] = []
-        self.event_signals["before_change"] = []
-        self.event_signals["change"] = []
+        self.event_signals = {"before_delete": [], "delete": [], "before_change": [], "change": []}
         self.check_change = check_change
 
         try:
