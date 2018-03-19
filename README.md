@@ -58,6 +58,56 @@ t.set_x(3)
 # new signal
 ```
 
+
+Change the value that is passed to the change callback functions.
+```python
+from event_signal import signaler
+
+class XTest(object):
+    def __init__(self, x=0):
+        self._x = x
+
+    def get_x(self):
+        return self._x
+
+    @signaler(getter=get_x)
+    def set_x(self, x):
+        """Set x and force the value to be between 1 and 100."""
+        if x < 0:
+            x = 0
+        elif x > 100:
+            x = 100
+        self._x = x
+        
+    @set_x.on("before_change")
+    def x_changing(self, x):
+        print("x is changing", x)
+        
+    @set_x.on("change")
+    def x_changed(self, x):
+        print("x changed", x)
+        
+t = XTest()
+
+t.set_x(1)
+# x is changing 1
+# x changed 1
+
+# Normally (without the getter) the change callback functions receive 
+# the x value that was passed into set_x
+t.set_x(-1)
+# x is changing -1
+# x changed 0
+
+t.set_x(102)
+# x is changing 102
+# x changed 100
+
+# In this case the value passed into the change callback functions
+# is the value returned from the signaler getter (t.get_x) 
+# which is how the signaler_property works.
+```
+
 ## Example - signaler_property
 A property with signaler capabilities
 ```python

@@ -48,6 +48,8 @@ def test_add_signal_to_class():
     t.fire("testing", "blah", False)
     assert test == [("abc", "123")]
 
+    print("test_add_signal_to_class passed!")
+
 
 def test_add_signal_to_obj():
     class SignalTest(object):
@@ -91,6 +93,8 @@ def test_add_signal_to_obj():
     t.fire("testing", "blah", False)
     assert test == [("abc", "123")]
 
+    print("test_add_signal_to_obj passed!")
+
 
 def test_get_signal():
     class SignalTest(object):
@@ -116,6 +120,8 @@ def test_get_signal():
 
     t.event_signals["testing"].remove(blah)
     assert get_signal(t, "testing") == []
+
+    print("test_get_signal passed!")
 
 
 def test_on_signal():
@@ -144,6 +150,8 @@ def test_on_signal():
     t.event_signals["testing"].remove(testing)
     assert t.event_signals["testing"] == []
 
+    print("test_on_signal passed!")
+
 
 def test_off_signal():
     class SignalTest(object):
@@ -170,6 +178,8 @@ def test_off_signal():
     off_signal(t, "testing", testing)
     assert t.event_signals["testing"] == []
 
+    print("test_off_signal passed!")
+
 
 def test_fire_signal():
     class SignalTest(object):
@@ -194,6 +204,8 @@ def test_fire_signal():
 
     fire_signal(t, "testing", "Hello", "World!")
     assert test == [("abc", "123"), ("Hello", "World!")]
+
+    print("test_fire_signal passed!")
 
 
 if __name__ == '__main__':

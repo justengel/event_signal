@@ -34,8 +34,10 @@ def test_simple_before_change_change():
     assert t.test == value
     assert t.test2 == value
 
+    print("test_simple_before_change_change passed!")
 
-def test_signaler_getter():
+
+def test_signaler_getter_simple():
     class XTest(object):
         def __init__(self, x=0):
             self._x = x
@@ -62,6 +64,55 @@ def test_signaler_getter():
     assert t.get_x() == "GETTER VALUE"
     assert t._x == value
     assert t.test == "GETTER VALUE"
+
+    print("test_signaler_getter_simple passed!")
+
+
+def test_signaler_getter():
+    class XTest(object):
+        def __init__(self, x=0):
+            self._x = x
+            self.test = None
+
+        def get_x(self):
+            return self._x
+
+        @signaler(getter=get_x)
+        def set_x(self, x):
+            if x < 0:
+                x = 0
+            elif x > 100:
+                x = 100
+            self._x = x
+
+        @set_x.on("change")
+        def test_getter(self, value):
+            self.test = value
+
+    t = XTest()
+    assert t.get_x() == 0
+    assert t._x == 0
+    assert t.test is None
+
+    value = 1
+    t.set_x(value)
+    assert t.get_x() == 1
+    assert t._x == value
+    assert t.test == 1
+
+    value = -1
+    t.set_x(value)
+    assert t.get_x() == 0
+    assert t._x == 0
+    assert t.test == 0
+
+    value = 101
+    t.set_x(value)
+    assert t.get_x() == 100
+    assert t._x == 100
+    assert t.test == 100
+
+    print("test_signaler_getter passed!")
 
 
 def test_signaler_instances():
@@ -95,6 +146,8 @@ def test_signaler_instances():
     assert t.get_x() == value
     assert t.test == value
     assert t.test2 == value
+
+    print("test_signaler_instances passed!")
 
 
 def test_chaining():
@@ -235,10 +288,13 @@ def test_chaining():
     assert p._move_pre == [("x2", "y2"), ("x3", "y3"), ("x4", "y4")]
     assert p._move_post == [("x2", "y2"), ("x3", "y3"), ("x4", "y4")]
 
+    print("test_chaining passed!")
+
 
 if __name__ == '__main__':
     test_simple_before_change_change()
-    test_signaler_getter
+    test_signaler_getter_simple()
+    test_signaler_getter()
     test_signaler_instances()
     test_chaining()
     print("All tests passed!")

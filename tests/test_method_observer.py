@@ -145,6 +145,8 @@ def test_method_observer():
     assert move_before_vals == [("x1", "y1")]
     assert move_post_vals == [("x1", "y1")]
 
+    print("test_method_observer passed!")
+
 
 def test_inheritance():
     class Point(MethodObserver):
@@ -383,6 +385,8 @@ def test_inheritance():
     assert xyz_post_vals == ["x0", "y0", "z0", "x1", "y1", "z1", "x2", "y2", "z2", "z3"]
     assert move_before_vals == [("x1", "y1", "z1")]
     assert move_post_vals == [("x1", "y1", "z1")]
+
+    print("test_inheritance passed!")
 
 
 if __name__ == '__main__':

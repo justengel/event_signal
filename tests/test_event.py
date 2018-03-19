@@ -90,6 +90,8 @@ def test_signal():
     assert vals[1] is None
     assert vals[2] is None
 
+    print("test_signal passed!")
+
 
 def test_signal_change():
     class MyClass(object):
@@ -126,6 +128,8 @@ def test_signal_change():
     t.set_x(2)
     assert t.get_x() == 2
     assert vals[0] is None
+
+    print("test_signal_change passed!")
 
 
 if __name__ == '__main__':

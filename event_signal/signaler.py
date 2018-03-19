@@ -29,6 +29,7 @@ class SignalerDecoratorInstance(SignalerInstance):
 
     def __call__(self, *args, **kwargs):
         if self.func is None and callable(args[0]):
+            # Decorating a function
             self.func = args[0]
             try:
                 self.__name__ = self.func.__name__
@@ -38,7 +39,9 @@ class SignalerDecoratorInstance(SignalerInstance):
                 self.__doc__ = self.func.__doc__
             except AttributeError:
                 pass
+            return self
         else:
+            # Calling this class
             fire_signal(self, "before_change", *args, **kwargs)
             ret = self.func(*args, **kwargs)
 

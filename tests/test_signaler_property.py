@@ -31,6 +31,8 @@ def test_property():
     except AttributeError:
         pass
 
+    print("test_property passed!")
+
 
 def test_no_setter():
     class XTest(object):
@@ -49,6 +51,8 @@ def test_no_setter():
         raise AssertionError("No setter was set. The cmd 't.x = 1' should have failed.")
     except AttributeError:
         pass
+
+    print("test_no_setter passed!")
 
 
 def test_no_deleter():
@@ -80,6 +84,8 @@ def test_no_deleter():
         raise AssertionError("No deleter was set. The cmd 'del t.x' should have failed.")
     except AttributeError:
         pass
+
+    print("test_no_deleter passed!")
 
 
 def test_change():
@@ -129,6 +135,8 @@ def test_change():
     assert t.x == new_value2
     assert t._before_val == new_value
     assert t._post_val == value
+
+    print("test_change passed!")
 
 
 def test_delete():
@@ -202,6 +210,8 @@ def test_delete():
     assert t._before_val is None
     assert t._post_val is None
 
+    print("test_delete passed!")
+
 
 def test_signal_dot_property():
     class XTest(object):
@@ -250,6 +260,8 @@ def test_signal_dot_property():
     assert t.x == new_value2
     assert t._before_val == new_value
     assert t._post_val == value
+
+    print("test_signal_dot_property passed!")
 
 
 if __name__ == '__main__':
