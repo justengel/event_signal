@@ -18,6 +18,15 @@ class SignalerDecoratorInstance(SignalerInstance):
         self.getter = getter
         self.event_signals = {"before_change": [], "change": []}
 
+        try:
+            self.__name__ = self.func.__name__
+        except AttributeError:
+            pass
+        try:
+            self.__doc__ = self.func.__doc__
+        except AttributeError:
+            pass
+
     def __call__(self, *args, **kwargs):
         if self.func is None and callable(args[0]):
             self.func = args[0]

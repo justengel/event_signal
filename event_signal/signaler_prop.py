@@ -158,6 +158,11 @@ class SignalerPropertyInstance(SignalerInstance):
             doc = fget.__doc__
         self.__doc__ = doc
 
+        try:
+            self.__name__ = self.fget.__name__
+        except AttributeError:
+            pass
+
         self.event_signals["before_delete"] = []
         self.event_signals["delete"] = []
         self.event_signals["before_change"] = []
