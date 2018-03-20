@@ -3,6 +3,9 @@ from .signaler_inst import SignalerInstance
 from .signaler_prop import signaler_property
 
 
+__all__ = ["signaler", "SignalerDecoratorInstance"]
+
+
 class SignalerDecoratorInstance(SignalerInstance):
     def __init__(self, func=None, getter=None):
         """Decorate a function to emit signals.

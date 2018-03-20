@@ -1,6 +1,9 @@
 from .signal_funcs import get_signal, on_signal, off_signal, fire_signal, block_signals
 
 
+__all__ = ["SignalerInstance"]
+
+
 class SignalerInstance(object):
     """Emulates a function that has signals. This class is returned when signaler is used as a decorator."""
 

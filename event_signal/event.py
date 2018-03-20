@@ -68,6 +68,7 @@ How it works:
 """
 from .signaler_inst import SignalerInstance
 
+
 __all__ = ["Signal", "signal_change"]
 
 

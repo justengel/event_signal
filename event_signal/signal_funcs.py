@@ -1,7 +1,7 @@
-import inspect
 
 
-__all__ = ["get_signal", "on_signal", "off_signal", "fire_signal", "block_signals", "add_signal"]
+__all__ = ["get_signal", "on_signal", "off_signal", "fire_signal", "block_signals", "add_signal",
+           "copy_signals", "copy_signals_as_bound"]
 
 
 def get_signal(obj, signal_type):
@@ -133,3 +133,44 @@ def add_signal(obj, signal_type, assign_signal_functions=True):
         obj.event_signals[signal_type] = []
 
     return obj
+
+
+def copy_signals(old_sig, sig):
+    """Copy the event_signals over to the new sig.
+
+    Args:
+        old_sig: Copy event_signals from this object.
+        sig: Add event_signals to this object
+    """
+    if not hasattr(sig, "event_signals"):
+        sig.event_signals = {}
+
+    # Map all of the connected callbacks as bound methods to the instance
+    for key, funcs in old_sig.event_signals.items():
+        if key not in sig.event_signals:
+            sig.event_signals[key] = []
+
+        # Bind the methods and add them to the signals
+        bound_funcs = [func for func in funcs if func not in sig.event_signals[key]]
+        sig.event_signals[key] = sig.event_signals[key] + bound_funcs
+
+
+def copy_signals_as_bound(old_sig, sig, instance):
+    """Copy the event_signals over to the new sig as bound methods.
+
+    Args:
+        old_sig: Copy event_signals from this object.
+        sig: Add event_signals to this object
+        instance (object): Instance object to bind methods to.
+    """
+    if not hasattr(sig, "event_signals"):
+        sig.event_signals = {}
+
+    # Map all of the connected callbacks as bound methods to the instance
+    for key, funcs in old_sig.event_signals.items():
+        if key not in sig.event_signals:
+            sig.event_signals[key] = []
+
+        # Bind the methods and add them to the signals
+        bound_funcs = [func.__get__(instance, instance.__class__) for func in funcs]
+        sig.event_signals[key] = sig.event_signals[key] + bound_funcs

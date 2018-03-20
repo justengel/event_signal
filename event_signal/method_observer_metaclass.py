@@ -2,6 +2,9 @@ import types
 from .signaler import signaler
 
 
+__all__ = ["MethodObserverMeta", "MethodObserver"]
+
+
 class MethodObserverMeta(type):
     """Meta class that makes all functions signalers."""
     def __new__(typ, name, bases, attr):
