@@ -66,51 +66,56 @@ How it works:
     The above like of code first gets a CallbackManager with `my_class.something_happened`. The
     `.connect(function)` is calling the CallbackManager's 'connect' method.  
 """
-
+from .signaler_inst import SignalerInstance
 
 __all__ = ["Signal", "signal_change"]
 
 
-class CallbackManager:
+class CallbackManager(SignalerInstance):
     """The CallbackManager class holds a collection of callback functions. The callback functions are
     called when an emit is called. This class does not need to be used directly, use Signal instead.
     """
 
     def __init__(self, *args, **kwargs):
-        self.event_signals = {"change": []}
+        super().__init__()
+        self.event_signals["change"] = []
         self.args = args
         self.kwargs = kwargs
     # enc Constructor
 
     def connect(self, func):
         """Add a callback function to be called when an event happens."""
-        if func not in self.event_signals["change"]:
-            self.event_signals["change"].append(func)
+        self.on("change", func)
     # end connect
 
     def disconnect(self, func=None):
         """Disconnect a callback function or all callback functions if None is given."""
-        if func is None:
-            self.event_signals["change"] = []
-        else:
-            try:
-                self.event_signals["change"].remove(func)
-            except:
-                pass
+        self.off("change", func)
     # end disconnect
 
-    def block(self, block=True):
-        """Temporarily block a signal from calling callback functions."""
-        if block:
-            if "blocked-change" not in self.event_signals:
-                self.event_signals["blocked-change"] = self.event_signals["change"]
-                self.event_signals["change"] = []
-        else:
-            try:
-                self.event_signals["change"] = self.event_signals["blocked-change"]
-                del self.event_signals["blocked-change"]
-            except KeyError:
-                pass
+    def block(self, signal_type="change", block=True):
+        """Temporarily block the signal from calling the callback methods.
+
+        Args:
+            signal_type (str)[None]: Signal name to direct which signal to use or None for all signals
+            block (bool)[True]: Block or unblock the signals
+
+        Args Alternative:
+            signal_type (bool)[True]: If a bool is given it sets the block argument and the signal_type is assumed
+                to be the default "change" signal.
+        """
+        if signal_type is True or signal_type is False:
+            block = signal_type
+            signal_type = "change"
+        super().block(signal_type=signal_type, block=block)
+
+    def block_signal(self, block=True):
+        """Temporarily block the signal from calling the callback methods.
+
+        Args:
+            block (bool)[True]: Block or unblock the signals
+        """
+        super().block(signal_type="change", block=block)
 
     def check_arguments(self, *args, **kwargs):
         """Check the given arguments. DEPRECATED! Found this to be more of a hindrance."""
@@ -136,19 +141,17 @@ class CallbackManager:
         
     def emit(self, *args, **kwargs):
         """Trigger the event (Call all of the CallbackManager's functions)."""
-        self.__call__(*args, **kwargs)
+        self.fire("change", *args, **kwargs)
     # end emit
 
     def __call__(self, *args, **kwargs):
         """Trigger the event (Call all of the CallbackManager's functions)."""
-        # self.check_arguments(*args, **kwargs)
-        for func in self.event_signals["change"]:
-            func(*args, **kwargs)
+        self.fire("change", *args, **kwargs)
     # end __call__
 # end class CallbackManager
 
 
-class Signal:
+class Signal(SignalerInstance):
     """The Signal class is the connection between a class and having multiple callback functions.
     
     Example:
@@ -179,20 +182,24 @@ class Signal:
             something_happened.emit("This happened!") # alias for __call__ to emulate Qt Signal
     """
     def __init__(self, *args):
+        super().__init__()
         self.args = args
-        self.__signals__ = {}
+        self.__signalers__ = {}
     # end Constructor
 
-    def get_callbackmanager(self, instance=None):
+    def get_signaler_instance(self, instance=None):
         """Return (maybe create) the instance CallbackManager."""
         if instance is None:
             instance = self
-        if not hasattr(instance, "__signals__"):
-            instance.__signals__ = {}
-        if self not in instance.__signals__:
-            instance.__signals__[self] = CallbackManager(*self.args)
-        return instance.__signals__[self]  # return an event handler object for the instance
-    # end get_callbackmanager
+        if not hasattr(instance, "__signalers__"):
+            instance.__signalers__ = {}
+        if self not in instance.__signalers__:
+            instance.__signalers__[self] = CallbackManager(*self.args)
+
+        return instance.__signalers__[self]  # return an event handler object for the instance
+    # end get_signaler_instance
+
+    get_callbackmanager = get_signaler_instance
 
     # ========== Using Signal as a class decorator (Recommended) ==========
     def __set__(self, instance, func):
@@ -291,17 +298,19 @@ class signal_change(Signal):
         self.__doc__ = self.myfunc.__doc__
         super().__init__()
 
-    def get_callbackmanager(self, instance=None):
-        """Return (maybe create as well) the instance CallbackManager."""
+    def get_signaler_instance(self, instance=None):
+        """Return (maybe create) the instance CallbackManager."""
         if instance is None:
             instance = self
-        if not hasattr(instance, "__signals__"):
-            instance.__signals__ = {}
-        if self not in instance.__signals__:
-            instance.__signals__[self] = CallbackManager(*self.args)
-            instance.__signals__[self].connect(self.myfunc.__get__(instance, instance.__class__))  # Bounded method
-        return instance.__signals__[self]  # return an event handler object for the instance
-    # end get_callbackmanager
+        if not hasattr(instance, "__signalers__"):
+            instance.__signalers__ = {}
+        if self not in instance.__signalers__:
+            instance.__signalers__[self] = CallbackManager(*self.args)
+            instance.__signalers__[self].connect(self.myfunc.__get__(instance, instance.__class__))  # Bounded method
+        return instance.__signalers__[self]  # return an event handler object for the instance
+    # end get_signaler_instance
+
+    get_callbackmanager = get_signaler_instance
 
 
 if __name__ == "__main__":
