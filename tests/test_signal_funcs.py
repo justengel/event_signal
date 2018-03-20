@@ -1,4 +1,4 @@
-from event_signal import get_signal, on_signal, off_signal, fire_signal, add_signal
+from event_signal import get_signal, on_signal, off_signal, fire_signal, block_signals, add_signal
 
 
 def test_add_signal_to_class():
@@ -208,6 +208,57 @@ def test_fire_signal():
     print("test_fire_signal passed!")
 
 
+def test_block_signal():
+    class SignalTest(object):
+        def __init__(self):
+            super().__init__()
+            self.event_signals = {"testing": [], "test2": []}
+
+    t = SignalTest()
+    assert hasattr(t, "event_signals") and "testing" in t.event_signals and "test2" in t.event_signals
+    assert get_signal(t, "testing") == []
+    assert t.event_signals["testing"] == []
+    assert t.event_signals["test2"] == []
+
+    test = []
+    test2 = []
+
+    def testing(value1, value2):
+        test.append((value1, value2))
+
+    def test2_func(*args):
+        test2.append(args)
+
+    # Test connect and emit
+    t.event_signals["testing"].append(testing)
+    t.event_signals["test2"].append(test2_func)
+
+    fire_signal(t, "testing", "abc", "123")
+    assert test == [("abc", "123")]
+
+    block_signals(t)
+    fire_signal(t, "testing", "Hello", "World!")
+    assert test == [("abc", "123")]
+
+    block_signals(t, block=False)
+    fire_signal(t, "testing", "Hello", "World!")
+    assert test == [("abc", "123"), ("Hello", "World!")]
+
+    block_signals(t, "test2", True)
+    fire_signal(t, "testing", "Hello", "again")
+    fire_signal(t, "test2", False)
+    assert test == [("abc", "123"), ("Hello", "World!"), ("Hello", "again")]
+    assert test2 == [], "Failed to block the right signal"
+
+    block_signals(t, "test2", False)
+    fire_signal(t, "testing", "Hello", "again")
+    fire_signal(t, "test2", True)
+    assert test == [("abc", "123"), ("Hello", "World!"), ("Hello", "again"), ("Hello", "again")]
+    assert test2 == [(True,)], "Failed to block the right signal"
+
+    print("test_block_signal passed!")
+
+
 if __name__ == '__main__':
     test_add_signal_to_class()
     test_add_signal_to_obj()
@@ -215,4 +266,5 @@ if __name__ == '__main__':
     test_on_signal()
     test_off_signal()
     test_fire_signal()
+    test_block_signal()
     print("All tests passed!")

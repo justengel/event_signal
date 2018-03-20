@@ -150,6 +150,64 @@ def test_signaler_instances():
     print("test_signaler_instances passed!")
 
 
+def test_signaler_block():
+    class XTest(object):
+        def __init__(self, x=0):
+            self._x = x
+            self.test = None
+            self.test2 = None
+
+        def get_x(self):
+            return self._x
+
+        @signaler
+        def set_x(self, x):
+            self._x = x
+
+    t = XTest()
+    def set_test(value):
+        t.test = value
+    def set_test2(value):
+        t.test2 = value
+    t.set_x.on("before_change", set_test)
+    t.set_x.on("change", set_test2)
+
+    assert t.get_x() == 0
+    assert t.test is None
+    assert t.test2 is None
+
+    t.set_x.block('before_change')
+    value = 2
+    t.set_x(value)
+    assert t.get_x() == value
+    assert t.test is None
+    assert t.test2 == value
+
+    t.set_x.block('before_change', block=False)
+    value = 3
+    t.set_x(value)
+    assert t.get_x() == value
+    assert t.test == value
+    assert t.test2 == value
+
+    t.set_x.block()
+    last_value = value
+    value = 4
+    t.set_x(value)
+    assert t.get_x() == value
+    assert t.test == last_value
+    assert t.test2 == last_value
+
+    t.set_x.block(block=False)
+    value = 5
+    t.set_x(value)
+    assert t.get_x() == value
+    assert t.test == value
+    assert t.test2 == value
+
+    print("test_signaler_block passed!")
+
+
 def test_chaining():
     class Point(object):
         def __init__(self, x=0, y=0):
@@ -296,5 +354,6 @@ if __name__ == '__main__':
     test_signaler_getter_simple()
     test_signaler_getter()
     test_signaler_instances()
+    test_signaler_block()
     test_chaining()
     print("All tests passed!")

@@ -213,6 +213,71 @@ def test_delete():
     print("test_delete passed!")
 
 
+def test_property_block_signal():
+    class XTest(object):
+        def __init__(self, x=0):
+            self._x = x
+            self._before_val = None
+            self._post_val = None
+
+        @signaler_property
+        def x(self):
+            return self._x
+
+        @x.setter
+        def x(self, value):
+            self._x = value
+
+        @x.on("before_change")
+        def x_changing(self, value):
+            self._before_val = value
+
+        @x.on("change")
+        def x_changed(self, value):
+            self._post_val = value
+
+    t = XTest()
+    assert t.x == 0
+    assert t._before_val is None
+    assert t._post_val is None
+
+    value = 1
+    t.x = value
+    assert t.x == value
+    assert t._before_val == value
+    assert t._post_val == value
+
+    XTest.x.block(t, "change", True)
+    new_value = 2
+    t.x = new_value
+    assert t.x == new_value
+    assert t._before_val == new_value
+    assert t._post_val == value
+
+    XTest.x.block(t, "change", False)
+    new_value2 = 3
+    t.x = new_value2
+    assert t.x == new_value2
+    assert t._before_val == new_value2
+    assert t._post_val == new_value2
+
+    XTest.x.block(t)
+    new_value3 = 4
+    t.x = new_value3
+    assert t.x == new_value3
+    assert t._before_val == new_value2
+    assert t._post_val == new_value2
+
+    XTest.x.block(t, block=False)
+    new_value4 = 5
+    t.x = new_value4
+    assert t.x == new_value4
+    assert t._before_val == new_value4
+    assert t._post_val == new_value4
+
+    print("test_property_block_signal passed!")
+
+
 def test_signal_dot_property():
     class XTest(object):
         def __init__(self, x=0):
@@ -270,5 +335,6 @@ if __name__ == '__main__':
     test_no_deleter()
     test_change()
     test_delete()
+    test_property_block_signal()
     test_signal_dot_property()
     print("All tests passed!")

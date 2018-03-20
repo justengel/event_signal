@@ -1,13 +1,17 @@
 import inspect
 
 
-__all__ = ["get_signal", "on_signal", "off_signal", "fire_signal", "add_signal"]
+__all__ = ["get_signal", "on_signal", "off_signal", "fire_signal", "block_signals", "add_signal"]
 
 
 def get_signal(obj, signal_type):
     """Return a list of callback functions that are connected to the signal."""
     try:
-        sig = obj.event_signals[signal_type]
+        # Get the blocked functions not the temporary fake signal type used when blocked
+        if "blocked-" + signal_type in obj.event_signals:
+            sig = obj.event_signals["blocked-" + signal_type]
+        else:
+            sig = obj.event_signals[signal_type]
         return [func for func in sig]
     except (KeyError, AttributeError) as error:
         raise ValueError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
@@ -17,7 +21,11 @@ def get_signal(obj, signal_type):
 def on_signal(obj, signal_type, func):
     """Connect a callback function to a signal."""
     try:
-        sig = obj.event_signals[signal_type]
+        # Connect to the blocked functions not the temporary fake signal type used when blocked
+        if "blocked-" + signal_type in obj.event_signals:
+            sig = obj.event_signals["blocked-" + signal_type]
+        else:
+            sig = obj.event_signals[signal_type]
         if func not in sig:
             sig.append(func)
     except (KeyError, AttributeError):
@@ -29,7 +37,11 @@ def on_signal(obj, signal_type, func):
 def off_signal(obj, signal_type, func):
     """Disconnect a callback function from a signal."""
     try:
-        sig = obj.event_signals[signal_type]
+        # Disconnect from blocked functions not the temporary fake signal type used when blocked
+        if "blocked-" + signal_type in obj.event_signals:
+            sig = obj.event_signals["blocked-" + signal_type]
+        else:
+            sig = obj.event_signals[signal_type]
         existed = func in sig
         if func is None:
             sig.clear()
@@ -54,6 +66,31 @@ def fire_signal(obj, signal_type, *args, **kwargs):
 
     for func in sig:
         func(*args, **kwargs)
+
+
+def block_signals(obj, signal_type=None, block=True):
+    """Temporarily block signals from being called."""
+    if signal_type is None:
+        signal_type = list(obj.event_signals.keys())
+    if not isinstance(signal_type, (list, tuple)):
+        signal_type = [signal_type]
+
+    for signal in signal_type:
+        if block:
+            if "blocked-" + signal not in obj.event_signals:
+                try:
+                    sigs = obj.event_signals[signal]
+                    if sigs:
+                        obj.event_signals[signal] = []
+                        obj.event_signals["blocked-" + signal] = sigs
+                except KeyError:
+                    pass
+        else:
+            try:
+                obj.event_signals[signal] = obj.event_signals["blocked-" + signal]
+                del obj.event_signals["blocked-" + signal]
+            except KeyError:
+                pass
 
 
 def add_signal(obj, signal_type, assign_signal_functions=True):

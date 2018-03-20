@@ -11,12 +11,13 @@ There are 4 main utilities provided
     
 ## Use
 
-There are 4 main functions to use the signals.
+There are 5 main functions to use the signals.
 
     * get - returns a list of connected function callbacks
     * on - connect a callback function to a signal
     * off - disconnect a callback funciton from a signal
     * fire - Call all callback functions that are associated with a signal
+    * block - Temporarily block a signal from calling callback functions
     
 ## Example - signaler
 Javascript like events for functions and objects.
@@ -56,6 +57,17 @@ t.set_x.off("before_change", t.x_changing)
 t.set_x(3)
 # x changed 3
 # new signal
+
+t.set_x.block()
+t.set_x(4)
+
+t.set_x.block(block=False)
+t.set_x(5)
+# x changed 3
+# new signal
+
+t.set_x.block('change', True)
+t.set_x(6)
 ```
 
 
@@ -144,8 +156,16 @@ t.x = 2
 # x changed 2
 # new signal
 XTest.x.off(t, "before_change", t.x_changing)
-t = 3
+t.x = 3
 # x changed 3
+# new signal
+
+XTest.x.block(t, 'change')
+t.x = 4
+
+XTest.x.block(t, 'change', False)
+t.x = 5
+# x changed 
 # new signal
 ```
 

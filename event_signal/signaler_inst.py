@@ -1,4 +1,4 @@
-from .signal_funcs import get_signal, on_signal, off_signal, fire_signal
+from .signal_funcs import get_signal, on_signal, off_signal, fire_signal, block_signals
 
 
 class SignalerInstance(object):
@@ -101,4 +101,52 @@ class SignalerInstance(object):
             **kwargs: Named arguments to pass to the callback functions
         """
         fire_signal(self, signal_type, *args, **kwargs)
+
+    def block(self, signal_type=None, block=True):
+        """Temporarily block a specific signal or all signals from calling their callback functions.
+
+        Example:
+
+            .. code-block:: python
+
+                class MyClass:
+                    @signaler
+                    def set_x(self, value):
+                        self._x = value
+
+                    @set_x.on("before_change")
+                    def notify_before_change(self, value):
+                        print("x is changing", value)
+
+                    @set_x.on("change")
+                    def notify_change(self, value):
+                        print("x was changed", value)
+
+                m = MyClass()
+                m.set_x(1)
+                # "x is changing 1"
+                # "x was changed 1"
+
+                m.set_x.block()
+                m.set_x(2)
+
+                m.set_x.block(block=False)
+                m.set_x(3)
+                # "x is changing 2"
+                # "x was changed 3"
+
+                m.set_x.block("before_change", True)
+                m.set_x(4)
+                # "x was changed 4"
+
+                m.set_x.block("before_change", False)
+                m.set_x(5)
+                # "x is changing 5"
+                # "x was changed 5"
+
+        Args:
+            signal_type (str)[None]: Signal name to direct which signal to block or None to block or unblock all signals
+            block (bool)[True]: Block or unblock the signals
+        """
+        block_signals(self, signal_type=signal_type, block=block)
     # ========== END Callbacks ==========

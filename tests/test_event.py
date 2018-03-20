@@ -93,6 +93,52 @@ def test_signal():
     print("test_signal passed!")
 
 
+def test_signal_block():
+    class MyClass(object):
+        something = Signal(int)
+
+        def __init__(self, x=0):
+            self._x = x
+
+        def get_x(self):
+            return self._x
+
+        def set_x(self, x):
+            self._x = x
+            self.something.emit(self._x)
+
+    t = MyClass()
+    vals = [None]
+
+    # ===== Test connect =====
+    def save_value(value):
+        vals[0] = value
+
+    t.something.connect(save_value)
+
+    assert vals[0] is None
+    assert t.get_x() == 0
+
+    t.set_x(1)
+    assert t.get_x() == 1
+    assert vals[0] == 1
+
+    # ===== Test Block =====
+    vals[0] = None
+
+    t.something.block()
+    t.set_x(2)
+    assert t.get_x() == 2
+    assert vals[0] is None
+
+    t.something.block(False)
+    t.set_x(3)
+    assert t.get_x() == 3
+    assert vals[0] == 3
+
+    print("test_signal_block passed!")
+
+
 def test_signal_change():
     class MyClass(object):
         def __init__(self, x=0):
@@ -134,5 +180,6 @@ def test_signal_change():
 
 if __name__ == '__main__':
     test_signal()
+    test_signal_block()
     test_signal_change()
     print("All tests passed!")

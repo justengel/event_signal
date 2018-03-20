@@ -80,11 +80,11 @@ Example:
         Point.x.off(p, "change")  # Remove all callbacks from change
 
 """
-from .signal_funcs import get_signal, on_signal, off_signal, fire_signal
+from .signal_funcs import get_signal, on_signal, off_signal, fire_signal, block_signals
 from .signaler_inst import SignalerInstance
 
 
-__all__ = ["signaler_property"]
+__all__ = ["signaler_property", "SignalerPropertyInstance"]
 
 
 def copy_signals(old_sig, sig):
@@ -594,23 +594,21 @@ class signaler_property(property, SignalerInstance):
             instance (object): Object to connect the signal with.
             signal_type (str): Signal name to direct which signal to use
             *args, **kwargs: Callback function arguments
-
-        Args Alternative:
-            signal_type (str): Signal name to direct which signal to use
-            *args, **kwargs: Callback function arguments
         """
+        instance = self
+        signal_type = None
+
         length = len(args)
         if length == 0:
             raise ValueError("Invalid number of arguments given! Give either 'instance', 'signal_type', and '*args' "
                              "or just a 'signal_type' and '*args'.")
 
-        instance = args[0]
-        if isinstance(instance, str):
-            signal_type = instance
-            instance = self
+        first_arg = args[0]
+        if isinstance(first_arg, str):
+            signal_type = first_arg
             args = args[1:]
         elif len(args) > 1:
-            instance = self.get_signaler_instance(instance)
+            instance = self.get_signaler_instance(first_arg)
             signal_type = args[1]
             args = args[2:]
         else:
@@ -618,3 +616,37 @@ class signaler_property(property, SignalerInstance):
                              "or just a 'signal_type' and '*args'.")
 
         return fire_signal(instance, signal_type, *args, **kwargs)
+
+    def block(self, *args, **kwargs):
+        """Block the callback functions connected to the signal or signals.
+
+        Args:
+            instance (object): Object the signal is associated with.
+            signal_type (str)[None]: Signal name to direct which signal to use or None for all signals
+            block (bool)[True]: Block or unblock the signals
+
+        Args Alternative:
+            signal_type (str)[None]: Signal name to direct which signal to use or None for all signals
+            block (bool)[True]: Block or unblock the signals
+        """
+        instance = kwargs.get('instance', self)
+        signal_type = kwargs.get('signal_type', None)
+        block = kwargs.get('block', True)
+
+        length = len(args)
+        if length > 0:
+            first_arg = args[0]
+            if isinstance(first_arg, (str, list, tuple)) or first_arg is None:
+                # First argument is a signal so operate on this object
+                signal_type = first_arg
+                if length > 1:
+                    block = args[1]
+
+            else:
+                instance = self.get_signaler_instance(first_arg)
+                if length > 1:
+                    signal_type = args[1]
+                if length > 2:
+                    block = args[2]
+
+        return block_signals(instance, signal_type=signal_type, block=block)

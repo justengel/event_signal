@@ -99,8 +99,21 @@ class CallbackManager:
                 pass
     # end disconnect
 
+    def block(self, block=True):
+        """Temporarily block a signal from calling callback functions."""
+        if block:
+            if "blocked-change" not in self.event_signals:
+                self.event_signals["blocked-change"] = self.event_signals["change"]
+                self.event_signals["change"] = []
+        else:
+            try:
+                self.event_signals["change"] = self.event_signals["blocked-change"]
+                del self.event_signals["blocked-change"]
+            except KeyError:
+                pass
+
     def check_arguments(self, *args, **kwargs):
-        """Check the given arguments. DEPRECATED!"""
+        """Check the given arguments. DEPRECATED! Found this to be more of a hindrance."""
         for i, arg in enumerate(self.args):
             try:
                 given = args[i]
@@ -231,6 +244,11 @@ class Signal:
         cmngr = self.get_callbackmanager(self)
         cmngr.disconnect(func)
     # end disconnect
+
+    def block(self, block=True):
+        """Temporarily block a signal from calling callback functions."""
+        cmngr = self.get_callbackmanager(self)
+        cmngr.block(block=block)
     
     def emit(self, *args, **kwargs):
         """Emit and call this Signal instance event handler functions."""
