@@ -167,6 +167,10 @@ class SignalerPropertyInstance(SignalerInstance):
         self.fire("delete")
         return ret  # None usually
 
+    def __call__(self, value):
+        """Set the value like a function. This makes the SignalerPropertyInstance very similar to the signaler."""
+        return self.set_value(value)
+
 
 class signaler_property(property, SignalerInstance):
     """Property that is observable through callback functions.

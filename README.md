@@ -2,12 +2,13 @@
 
 This library was created to help maintain when variables are changed and when functions are called.
 
-There are 4 main utilities provided
+There are 5 main utilities provided
 
     * signaler - Function decorator to help observe functions
     * signaler_property - Custom property that helps observe when a property value is changed or deleted.
     * MethodObserver - class mixin to make all function observable
     * Signal - Similar to Qt's signal without requiring PyQT or PySide
+    * bind - Make two object share the same value
     
 ## Use
 
@@ -254,4 +255,85 @@ t.x_changed.disconnect(t.notify_x_changed)  # or t.x_changed.disconnect()
 t.set_x(4)
 print(t.get_x())
 # 4
+```
+
+## Example - bind
+bind the value of two objects together. This will automatically use properties or find setter methods 
+("set_" + property_name or "set" + property_name). The binder will change a property to a signaler_property or if a 
+property is not found and a setter function is used it will change that setter function to a signaler if it is not 
+already a signaler.
+
+The main goal is to help two objects keep the same value for a variable.
+
+When using Qt I found this very annoying. I wanted a regular python object to store data and a GUI Widget to display 
+the value and let the user change value. I wanted the two items decoupled. Occasionally, I wanted to programmatically 
+set the data object value and wanted the GUI Widget to display this change automatically. The signals became annoying 
+to deal with since I do a lot of work with threading. After several overly complex solutions, I made this bind function 
+to make the GUI and data objects match values.
+
+```python
+from event_signal import bind, bind_signals  # bind_signals is only for directly giving signalers.
+
+
+class XTest(object):
+    def __init__(self, x=0, y=0):
+        self._x = x
+        self._y = y
+
+    def get_x(self):
+        return self._x
+
+    def set_x(self, x):
+        self._x = x
+    
+    @property    
+    def y(self):
+        return self._y
+    
+    @y.setter
+    def y(self, y):
+        self._y = y
+    
+        
+t = XTest()
+t2 = XTest()
+bind(t, "x", t2)
+t.set_x(1)
+print(t.get_x())
+# 1
+assert t.get_x() == t2.get_x()
+
+bind(t, "y", t2, "y")
+t2.y = 2
+print(t2.y)
+# 2
+assert t.y == t2.y
+```
+
+You can manually bind the signalers as well.
+```python
+from event_signal import signaler, bind_signals  # bind_signals is only for directly giving signalers.
+
+
+class Test2(object):
+    def __init__(self, x=0, y=0):
+        self._x = x
+        self._y = y
+
+    def get_x(self):
+        return self._x
+
+    @signaler(getter=get_x)
+    def set_x(self, x):
+        self._x = x
+        
+t1 = Test2()
+t2 = Test2()
+bind_signals(t1.set_x, t2.set_x)
+
+t1.set_x(2)
+assert t1.get_x() == t2.get_x()
+
+t2.set_x(5)
+assert t1.get_x() == t2.get_x()
 ```

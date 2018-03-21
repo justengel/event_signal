@@ -5,3 +5,5 @@ from .signaler_prop import signaler_property, SignalerPropertyInstance
 from .method_observer_metaclass import MethodObserver, MethodObserverMeta
 
 from .event import Signal, signal_change
+
+from .binder import bind_signals, bind, bind_lazy
