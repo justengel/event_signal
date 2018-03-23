@@ -78,6 +78,44 @@ def get_signaler(obj, property_name):
     return setter
 
 
+def bind_signals(obj1_signaler, obj2_signaler):
+    """Bind the data setter signal function and the settings setter signal function so they share the same value.
+
+    Args
+        data_setter (signaler/signaler_property/SignalerPropertyInstance): Data model signal setter method.
+        settings_setter (signaler/signaler_property/SignalerPropertyInstance): Settings model signal setter method.
+
+    Raises:
+        TypeError: If obj1_signaler or obj2_signaler does not have on or off methods to connect the signals
+    """
+    if not hasattr(obj1_signaler, "on") or not hasattr(obj1_signaler, "off"):
+        raise TypeError("The given obj1_signaler must be a SignalerInstance or have 'on' and 'off' methods "
+                        "to help connect and disconnect the signal callback functions. See event_signal.signaler")
+    if not hasattr(obj2_signaler, "on") or not hasattr(obj2_signaler, "off"):
+        raise TypeError("The given obj2_signaler must be a SignalerInstance or have 'on' and 'off' methods "
+                        "to help connect and disconnect the signal callback functions. See event_signal.signaler")
+
+    # if not hasattr(data_setter, "_signaler_lock"):
+    #     data_setter._signaler_lock = threading.RLock()
+    # if not hasattr(settings_setter, "_signaler_lock"):
+    #     settings_setter._signaler_lock = threading.RLock()
+
+    def call_obj2_setter(*args, **kwargs):
+        # with data_setter._signaler_lock: # Maybe need to add a threading RLock to be safe?
+        obj2_signaler.off("change", call_obj1_setter)
+        obj2_signaler(*args, **kwargs)
+        obj2_signaler.on("change", call_obj1_setter)
+
+    def call_obj1_setter(*args, **kwargs):
+        # with settings_setter._signaler_lock: # Maybe need to add a threading RLock to be safe?
+        obj1_signaler.off("change", call_obj2_setter)
+        obj1_signaler(*args, **kwargs)
+        obj1_signaler.on("change", call_obj2_setter)
+
+    obj1_signaler.on("change", call_obj2_setter)
+    obj2_signaler.on("change", call_obj1_setter)
+
+
 def bind_lazy(obj1, property_name, obj2, obj2_name=None):
     """Find the signaler or signaler_property and bind the set functions together to make the objects have their
     values match.
@@ -138,41 +176,3 @@ def bind_lazy(obj1, property_name, obj2, obj2_name=None):
 
 
 bind = bind_lazy
-
-
-def bind_signals(obj1_signaler, obj2_signaler):
-    """Bind the data setter signal function and the settings setter signal function so they share the same value.
-
-    Args
-        data_setter (signaler/signaler_property/SignalerPropertyInstance): Data model signal setter method.
-        settings_setter (signaler/signaler_property/SignalerPropertyInstance): Settings model signal setter method.
-
-    Raises:
-        TypeError: If obj1_signaler or obj2_signaler does not have on or off methods to connect the signals
-    """
-    if not hasattr(obj1_signaler, "on") or not hasattr(obj1_signaler, "off"):
-        raise TypeError("The given obj1_signaler must be a SignalerInstance or have 'on' and 'off' methods "
-                        "to help connect and disconnect the signal callback functions. See event_signal.signaler")
-    if not hasattr(obj2_signaler, "on") or not hasattr(obj2_signaler, "off"):
-        raise TypeError("The given obj2_signaler must be a SignalerInstance or have 'on' and 'off' methods "
-                        "to help connect and disconnect the signal callback functions. See event_signal.signaler")
-
-    # if not hasattr(data_setter, "_signaler_lock"):
-    #     data_setter._signaler_lock = threading.RLock()
-    # if not hasattr(settings_setter, "_signaler_lock"):
-    #     settings_setter._signaler_lock = threading.RLock()
-
-    def call_obj2_setter(*args, **kwargs):
-        # with data_setter._signaler_lock: # Maybe need to add a threading RLock to be safe?
-        obj2_signaler.off("change", call_obj1_setter)
-        obj2_signaler(*args, **kwargs)
-        obj2_signaler.on("change", call_obj1_setter)
-
-    def call_obj1_setter(*args, **kwargs):
-        # with settings_setter._signaler_lock: # Maybe need to add a threading RLock to be safe?
-        obj1_signaler.off("change", call_obj2_setter)
-        obj1_signaler(*args, **kwargs)
-        obj1_signaler.on("change", call_obj2_setter)
-
-    obj1_signaler.on("change", call_obj2_setter)
-    obj2_signaler.on("change", call_obj1_setter)
