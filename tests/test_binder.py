@@ -330,6 +330,45 @@ def test_bind_with_signaler():
     print("test_bind_with_signaler passed!")
 
 
+def test_bind_with_giving_signaler():
+    class Test(object):
+        def __init__(self, x=0, y=0):
+            self._x = x
+            self._y = 0
+
+        def get_x(self):
+            return self._x
+
+        @signaler(getter=get_x)
+        def set_x(self, x):
+            self._x = x
+
+    t1 = Test()
+    t2 = Test()
+
+    bind(t1, "set_x", t2.set_x)
+
+    value = 20
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    # New test
+    t1 = Test()
+    t2 = Test()
+
+    bind(t1.set_x, None, t2.set_x)
+
+    value = 20
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    print("test_bind_with_giving_signaler passed!")
+
+
 if __name__ == '__main__':
     test_bind_signals()
     test_bind_signals_getter()
@@ -337,4 +376,5 @@ if __name__ == '__main__':
     test_bind_lazy_setter_obj2_property_name()
     test_bind_lazy_property()
     test_bind_with_signaler()
+    test_bind_with_giving_signaler()
     print("All tests passed!")

@@ -82,25 +82,58 @@ def bind_lazy(obj1, property_name, obj2, obj2_name=None):
     """Find the signaler or signaler_property and bind the set functions together to make the objects have their
     values match.
 
+    Examples:
+
+        .. code-block:: python
+
+            >>> class Test(object):
+            >>>     def __init__(self, x=0):
+            >>>         self._x = x
+            >>>
+            >>>     def get_x(self):
+            >>>         return self._x
+            >>>
+            >>>     @signaler(getter=get_x)
+            >>>     def set_x(self, value):
+            >>>         self._x = value
+            >>>
+            >>> t1 = Test()
+            >>> t2 = Test()
+            >>> # Example acceptable arguments
+            >>> bind_lazy(t1, "x", t2)
+            >>> bind_lazy(t1, "x", t2, "x")
+            >>> bind_lazy(t1, "set_x", t2, "x")
+            >>> bind_lazy(t1.set_x, None, t2, "set_x")
+            >>> bind_lazy(t1.set_x, None, t2.set_x)  # Same as bind_signals(t1.set_x, t2.set_x)
+
     Args:
-        obj1(object): Data model object to have it's data match another object
-        property_name(str): obj1's property name or name of setter method that can be found with "set_" + property_name
-            or "set" + property_name
-        obj2(object): Data model object to have it's data match another object
-        obj2_name(str)[None]: obj2's property name or name of setter method that can be found with "set_" + other_name
-            or "set" + other_name. If None is given this uses the given property_name.
+        obj1(object): First object to bind. This can either be an object with a given property_name or a
+            signaler/SignalerInstance.
+        property_name(str)[None]: obj1's property name, name of setter method ("set_" or "set" + property_name), or
+            None if obj1 was a signler/SignalerInstance.
+        obj2(object): Second object to bind. This can either be an object with a given property_name/obj2_name or a
+            signaler/SignalerInstance.
+        obj2_name(str)[None]: obj2's property name or name of setter method ("set_" or "set" + property_name), or
+            None if obj2 was a signaler/SignalerInstance or use property_name for obj2 as well.
 
     Raises:
         AttributeError: If obj1 does not have the property_name as a property or callable function or if obj2 does
             not have the obj2_name as a property or callable function.
         TypeError: If obj1_signaler or obj2_signaler does not have on or off methods to connect the signals
     """
-    property_name = str(property_name)
-    if obj2_name is None:
-         obj2_name = property_name
+    if isinstance(obj1, SignalerInstance) and property_name is None:
+        obj1_sig = obj1
+    else:
+        property_name = str(property_name)
+        obj1_sig = get_signaler(obj1, property_name)
 
-    obj1_sig = get_signaler(obj1, property_name)
-    obj2_sig = get_signaler(obj2, obj2_name)
+    if isinstance(obj2, SignalerInstance) and obj2_name is None:
+        obj2_sig = obj2
+    else:
+        if obj2_name is None:
+             obj2_name = property_name
+        obj2_sig = get_signaler(obj2, obj2_name)
+
     bind_signals(obj1_sig, obj2_sig)
 
 
