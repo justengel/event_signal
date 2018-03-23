@@ -337,3 +337,64 @@ assert t1.get_x() == t2.get_x()
 t2.set_x(5)
 assert t1.get_x() == t2.get_x()
 ```
+
+An unbind option is also available and works just like the examples above accept you can choose to unbind a single object at a time
+```python
+from event_signal import bind, unbind, unbind_signals  # unbind_signals is only for directly giving one or more signalers.
+
+
+class XTest(object):
+    def __init__(self, x=0):
+        self._x = x
+
+    def get_x(self):
+        return self._x
+
+    def set_x(self, x):
+        self._x = x
+        
+t = XTest()
+t2 = XTest()
+bind(t, "x", t2)
+
+t.set_x(1)
+print(t.get_x())
+# 1
+assert t.get_x() == t2.get_x()
+
+unbind(t, "x")
+t.set_x(2)
+print(t.get_x())
+# 2
+assert t.get_x() != t2.get_x()
+
+t2.set_x(3)
+print(t2.get_x())
+# 3
+assert t.get_x() == t2.get_x()
+
+
+unbind(t2.set_x)
+t2.set_x(4)
+print(t2.get_x())
+# 4
+assert t.get_x() != t2.get_x()
+
+
+bind(t, "x", t2)
+t.set_x(1)
+print(t.get_x())
+# 1
+assert t.get_x() == t2.get_x()
+
+unbind(t, "x", t2)
+t.set_x(2)
+print(t.get_x())
+# 2
+assert t.get_x() != t2.get_x()
+
+t2.set_x(3)
+print(t2.get_x())
+# 3
+assert t.get_x() != t2.get_x()
+```

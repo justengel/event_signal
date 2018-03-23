@@ -1,6 +1,6 @@
 from event_signal.signaler import signaler
 from event_signal.signaler_prop import signaler_property
-from event_signal.binder import bind_signals, bind
+from event_signal.binder import bind_signals, bind, unbind_signals, unbind
 
 
 def test_bind_signals():
@@ -369,6 +369,180 @@ def test_bind_with_giving_signaler():
     print("test_bind_with_giving_signaler passed!")
 
 
+def test_unbind_signals():
+    class Test(object):
+        def __init__(self, x=0, y=0):
+            self._x = x
+            self._y = 0
+
+        def get_x(self):
+            return self._x
+
+        @signaler(getter=get_x)
+        def set_x(self, x):
+            self._x = x
+
+    t1 = Test()
+    t2 = Test()
+
+    bind(t1, "set_x", t2)
+
+    value = 20
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    # single unbind
+    unbind_signals(t1.set_x)
+
+    last_value = value
+    value = 10
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == last_value
+    assert t1.get_x() != t2.get_x()
+
+    # Only t1.set_x was unbound t2.set_x should still change t1.set_x
+    last_value = value
+    value = 30
+    t2.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    # other unbind
+    unbind_signals(t2.set_x)
+
+    # t1 and t2 should not match both signals have been disconnected
+    last_value = value
+    value = 40
+    t2.set_x(value)
+    assert t1.get_x() == last_value
+    assert t2.get_x() == value
+    assert t1.get_x() != t2.get_x()
+
+    # New bind to test double unbind
+    bind(t1.set_x, None, t2.set_x)
+
+    value = 20
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    value = 30
+    t2.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    unbind_signals(t1.set_x, t2.set_x)
+
+    last_value = value
+    value = 10
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == last_value
+    assert t1.get_x() != t2.get_x()
+
+    last_value = value
+    value = 40
+    t2.set_x(value)
+    assert t1.get_x() == last_value
+    assert t2.get_x() == value
+    assert t1.get_x() != t2.get_x()
+
+    print("test_unbind_signals passed!")
+
+
+def test_unbind():
+    class Test(object):
+        def __init__(self, x=0, y=0):
+            self._x = x
+            self._y = 0
+
+        def get_x(self):
+            return self._x
+
+        @signaler(getter=get_x)
+        def set_x(self, x):
+            self._x = x
+
+    t1 = Test()
+    t2 = Test()
+
+    bind(t1, "set_x", t2)
+
+    value = 20
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    # single unbind
+    unbind(t1, "x")
+
+    last_value = value
+    value = 10
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == last_value
+    assert t1.get_x() != t2.get_x()
+
+    # Only t1.set_x was unbound t2.set_x should still change t1.set_x
+    last_value = value
+    value = 30
+    t2.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    # other unbind
+    unbind(t2.set_x)
+
+    # t1 and t2 should not match both signals have been disconnected
+    last_value = value
+    value = 40
+    t2.set_x(value)
+    assert t1.get_x() == last_value
+    assert t2.get_x() == value
+    assert t1.get_x() != t2.get_x()
+
+    # New bind to test double unbind
+    bind(t1.set_x, None, t2.set_x)
+
+    value = 20
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    value = 30
+    t2.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == value
+    assert t1.get_x() == t2.get_x()
+
+    unbind(t1.set_x, None, t2, "x")
+
+    last_value = value
+    value = 10
+    t1.set_x(value)
+    assert t1.get_x() == value
+    assert t2.get_x() == last_value
+    assert t1.get_x() != t2.get_x()
+
+    last_value = value
+    value = 40
+    t2.set_x(value)
+    assert t1.get_x() == last_value
+    assert t2.get_x() == value
+    assert t1.get_x() != t2.get_x()
+
+    print("test_unbind passed!")
+
+
 if __name__ == '__main__':
     test_bind_signals()
     test_bind_signals_getter()
@@ -377,4 +551,7 @@ if __name__ == '__main__':
     test_bind_lazy_property()
     test_bind_with_signaler()
     test_bind_with_giving_signaler()
+
+    test_unbind_signals()
+    test_unbind()
     print("All tests passed!")

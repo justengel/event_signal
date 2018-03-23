@@ -4,7 +4,7 @@ from .signaler_prop import signaler_property
 from .signaler import signaler
 
 
-__all__ = ["bind", "bind_lazy", "bind_signals"]
+__all__ = ["is_property", "is_signaler_property", "get_signaler", "bind_signals", "unbind_signals", "bind", "unbind"]
 
 
 GETTER_PREFIXES = ["get_", "get", "is_", "is", "has_", "has"]
@@ -79,11 +79,11 @@ def get_signaler(obj, property_name):
 
 
 def bind_signals(obj1_signaler, obj2_signaler):
-    """Bind the data setter signal function and the settings setter signal function so they share the same value.
+    """Bind the obj1 setter signal function and the obj2 setter signal function so they share the same value.
 
     Args
-        data_setter (signaler/signaler_property/SignalerPropertyInstance): Data model signal setter method.
-        settings_setter (signaler/signaler_property/SignalerPropertyInstance): Settings model signal setter method.
+        obj1_signaler (signaler/signaler_property/SignalerPropertyInstance): obj1 signal setter method to bind.
+        obj2_signaler (signaler/signaler_property/SignalerPropertyInstance): obj2 signal setter method to bind.
 
     Raises:
         TypeError: If obj1_signaler or obj2_signaler does not have on or off methods to connect the signals
@@ -102,21 +102,62 @@ def bind_signals(obj1_signaler, obj2_signaler):
 
     def call_obj2_setter(*args, **kwargs):
         # with data_setter._signaler_lock: # Maybe need to add a threading RLock to be safe?
-        obj2_signaler.off("change", call_obj1_setter)
+        exists = obj2_signaler.off("change", call_obj1_setter)
         obj2_signaler(*args, **kwargs)
-        obj2_signaler.on("change", call_obj1_setter)
+        if exists:
+            obj2_signaler.on("change", call_obj1_setter)
 
     def call_obj1_setter(*args, **kwargs):
         # with settings_setter._signaler_lock: # Maybe need to add a threading RLock to be safe?
-        obj1_signaler.off("change", call_obj2_setter)
+        exists = obj1_signaler.off("change", call_obj2_setter)
         obj1_signaler(*args, **kwargs)
-        obj1_signaler.on("change", call_obj2_setter)
+        if exists:
+            obj1_signaler.on("change", call_obj2_setter)
 
+    # Bind the signalers together
     obj1_signaler.on("change", call_obj2_setter)
     obj2_signaler.on("change", call_obj1_setter)
 
+    # Add a bind_methods variable so the signalers bind can be undone.
+    if not hasattr(obj1_signaler, "bind_methods"):
+        obj1_signaler.bind_methods = []
+    obj1_signaler.bind_methods.append(call_obj2_setter)
 
-def bind_lazy(obj1, property_name, obj2, obj2_name=None):
+    if not hasattr(obj2_signaler, "bind_methods"):
+        obj2_signaler.bind_methods = []
+    obj2_signaler.bind_methods.append(call_obj1_setter)
+
+
+def unbind_signals(obj1_signaler, obj2_signaler=None):
+    """Unbind all of the bind_methods for the signaler/SignalInstance. This will remove the binding done by
+    'bind' or 'bind_signals' for ALL binds.
+
+    Args
+        obj1_signaler (signaler/signaler_property/SignalerPropertyInstance): obj1 signal setter method to unbind.
+        obj2_signaler (signaler/signaler_property/SignalerPropertyInstance)[None]: obj2 signal setter method to unbind.
+
+    Raises:
+        TypeError: If obj1_signaler or obj2_signaler (is not None) does not have an off method to use to unbind.
+    """
+    if not hasattr(obj1_signaler, "off"):
+        raise TypeError("The given obj1_signaler must be a SignalerInstance or have an 'off' method "
+                        "to help disconnect the signal callback functions. See event_signal.signaler")
+    if obj2_signaler is not None and not hasattr(obj2_signaler, "off"):
+        raise TypeError("The given obj2_signaler must be a SignalerInstance or have an 'off' method "
+                        "to help disconnect the signal callback functions. See event_signal.signaler")
+
+    if hasattr(obj1_signaler, "bind_methods"):
+        for i in reversed(range(len(obj1_signaler.bind_methods))):
+            binding = obj1_signaler.bind_methods.pop(i)
+            obj1_signaler.off("change", binding)
+
+    if hasattr(obj2_signaler, "bind_methods"):
+        for i in reversed(range(len(obj2_signaler.bind_methods))):
+            binding = obj2_signaler.bind_methods.pop(i)
+            obj2_signaler.off("change", binding)
+
+
+def bind(obj1, property_name, obj2, obj2_name=None):
     """Find the signaler or signaler_property and bind the set functions together to make the objects have their
     values match.
 
@@ -175,4 +216,64 @@ def bind_lazy(obj1, property_name, obj2, obj2_name=None):
     bind_signals(obj1_sig, obj2_sig)
 
 
-bind = bind_lazy
+def unbind(obj1, property_name=None, obj2=None, obj2_name=None):
+    """Find the signaler or signaler_property and bind the set functions together to make the objects have their
+    values match.
+
+    Examples:
+
+        .. code-block:: python
+
+            >>> class Test(object):
+            >>>     def __init__(self, x=0):
+            >>>         self._x = x
+            >>>
+            >>>     def get_x(self):
+            >>>         return self._x
+            >>>
+            >>>     @signaler(getter=get_x)
+            >>>     def set_x(self, value):
+            >>>         self._x = value
+            >>>
+            >>> t1 = Test()
+            >>> t2 = Test()
+            >>> bind(t1, "x", t2)
+            >>> # Example acceptable arguments
+            >>> unbind(t1, "x", t2)
+            >>> unbind(t1, "x", t2, "x")
+            >>> unbind(t1, "set_x", t2, "x")
+            >>> unbind(t1.set_x, None, t2, "set_x")
+            >>> unbind(t1.set_x, None, t2.set_x)  # Same as unbind_signals(t1.set_x, t2.set_x)
+            >>> unbind(t1.set_x)
+
+    Args:
+        obj1(object): First object to unbind. This can either be an object with a given property_name or a
+            signaler/SignalerInstance.
+        property_name(str)[None]: obj1's property name, name of setter method ("set_" or "set" + property_name), or
+            None if obj1 was a signler/SignalerInstance.
+        obj2(object)[None]: Second object to unbind (optional). This can either be an object with a given
+        property_name/obj2_name or a signaler/SignalerInstance.
+        obj2_name(str)[None]: obj2's property name or name of setter method ("set_" or "set" + property_name), or
+            None if obj2 was a signaler/SignalerInstance or use property_name for obj2 as well.
+
+    Raises:
+        AttributeError: If obj1 does not have the property_name as a property or callable function or if obj2 does
+            not have the obj2_name as a property or callable function.
+        TypeError: If obj1_signaler or obj2_signaler does not have on or off methods to connect the signals
+    """
+    if isinstance(obj1, SignalerInstance) and property_name is None:
+        obj1_sig = obj1
+    else:
+        property_name = str(property_name)
+        obj1_sig = get_signaler(obj1, property_name)
+
+    if obj2 is None:
+        obj2_sig = None
+    elif isinstance(obj2, SignalerInstance) and obj2_name is None:
+        obj2_sig = obj2
+    else:
+        if obj2_name is None:
+             obj2_name = property_name
+        obj2_sig = get_signaler(obj2, obj2_name)
+
+    unbind_signals(obj1_sig, obj2_sig)

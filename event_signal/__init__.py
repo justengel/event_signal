@@ -6,4 +6,4 @@ from .method_observer_metaclass import MethodObserver, MethodObserverMeta
 
 from .event import Signal, signal_change
 
-from .binder import bind_signals, bind, bind_lazy
+from .binder import is_property, is_signaler_property, get_signaler, bind_signals, unbind_signals, bind, unbind
