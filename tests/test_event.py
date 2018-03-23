@@ -69,7 +69,8 @@ def test_signal():
     assert vals[1] is None
     assert vals[2] is None
 
-    t.something_happened.disconnect(save_something)
+    exists = t.something_happened.disconnect(save_something)
+    assert exists
     t.process()
     assert vals[0] is None
     assert vals[1] == "process was called"
@@ -84,11 +85,18 @@ def test_signal():
     assert vals[1] is None
     assert vals[2] is None
 
-    t.something_happened.disconnect()
+    exists = t.something_happened.disconnect()
+    assert exists
     t.process()
     assert vals[0] is None
     assert vals[1] is None
     assert vals[2] is None
+
+    exists = t.something_happened.disconnect()
+    assert not exists
+
+    exists = t.something_happened.disconnect(save_something)
+    assert not exists
 
     print("test_signal passed!")
 

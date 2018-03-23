@@ -175,8 +175,12 @@ def test_off_signal():
     assert test == [("abc", "123")]
 
     # Test disconnect
-    off_signal(t, "testing", testing)
+    existed = off_signal(t, "testing", testing)
+    assert existed
     assert t.event_signals["testing"] == []
+
+    existed = off_signal(t, "testing", testing)
+    assert not existed
 
     print("test_off_signal passed!")
 

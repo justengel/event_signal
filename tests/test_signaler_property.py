@@ -122,19 +122,25 @@ def test_change():
     assert t._before_val == value
     assert t._post_val == value
 
-    XTest.x.off(t, "change", t.x_changed)
+    existed = XTest.x.off(t, "change", t.x_changed)
+    assert existed
     new_value = 2
     t.x = new_value
     assert t.x == new_value
     assert t._before_val == new_value
     assert t._post_val == value
 
-    XTest.x.off(t, "before_change", t.x_changing)
+    existed = XTest.x.off(t, "before_change", t.x_changing)
+    assert existed
     new_value2 = 3
     t.x = new_value2
     assert t.x == new_value2
     assert t._before_val == new_value
     assert t._post_val == value
+
+    XTest.x.off(t, "change")
+    existed = XTest.x.off(t, "change")
+    assert not existed
 
     print("test_change passed!")
 

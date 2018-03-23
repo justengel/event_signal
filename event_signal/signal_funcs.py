@@ -42,10 +42,11 @@ def off_signal(obj, signal_type, func):
             sig = obj.event_signals["blocked-" + signal_type]
         else:
             sig = obj.event_signals[signal_type]
-        existed = func in sig
         if func is None:
+            existed = len(sig) > 0
             sig.clear()
         else:
+            existed = func in sig
             try:
                 sig.remove(func)
             except:

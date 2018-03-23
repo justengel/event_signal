@@ -86,12 +86,12 @@ class CallbackManager(SignalerInstance):
 
     def connect(self, func):
         """Add a callback function to be called when an event happens."""
-        self.on("change", func)
+        return self.on("change", func)
     # end connect
 
     def disconnect(self, func=None):
         """Disconnect a callback function or all callback functions if None is given."""
-        self.off("change", func)
+        return self.off("change", func)
     # end disconnect
 
     def block(self, signal_type="change", block=True):
@@ -108,7 +108,7 @@ class CallbackManager(SignalerInstance):
         if signal_type is True or signal_type is False:
             block = signal_type
             signal_type = "change"
-        super().block(signal_type=signal_type, block=block)
+        return super().block(signal_type=signal_type, block=block)
 
     def block_signal(self, block=True):
         """Temporarily block the signal from calling the callback methods.
@@ -116,7 +116,7 @@ class CallbackManager(SignalerInstance):
         Args:
             block (bool)[True]: Block or unblock the signals
         """
-        super().block(signal_type="change", block=block)
+        return super().block(signal_type="change", block=block)
 
     def check_arguments(self, *args, **kwargs):
         """Check the given arguments. DEPRECATED! Found this to be more of a hindrance."""
@@ -142,12 +142,12 @@ class CallbackManager(SignalerInstance):
         
     def emit(self, *args, **kwargs):
         """Trigger the event (Call all of the CallbackManager's functions)."""
-        self.fire("change", *args, **kwargs)
+        return self.fire("change", *args, **kwargs)
     # end emit
 
     def __call__(self, *args, **kwargs):
         """Trigger the event (Call all of the CallbackManager's functions)."""
-        self.fire("change", *args, **kwargs)
+        return self.fire("change", *args, **kwargs)
     # end __call__
 # end class CallbackManager
 
@@ -244,29 +244,29 @@ class Signal(SignalerInstance):
     def connect(self, func):
         """Connect a function to this Signal instance."""
         cmngr = self.get_callbackmanager(self)
-        cmngr.connect(func)
+        return cmngr.connect(func)
     # end connect
     
     def disconnect(self, func):
         """Disconnect a function from this Signal instance."""
         cmngr = self.get_callbackmanager(self)
-        cmngr.disconnect(func)
+        return cmngr.disconnect(func)
     # end disconnect
 
     def block(self, block=True):
         """Temporarily block a signal from calling callback functions."""
         cmngr = self.get_callbackmanager(self)
-        cmngr.block(block=block)
+        return cmngr.block(block=block)
     
     def emit(self, *args, **kwargs):
         """Emit and call this Signal instance event handler functions."""
-        self.__call__(*args, **kwargs)
+        return self.__call__(*args, **kwargs)
     # end emit
     
     def __call__(self, *args, **kwargs):
         """Emit and call this Signal instance event handler functions."""
         cmngr = self.get_callbackmanager(self)
-        cmngr(*args, **kwargs)
+        return cmngr(*args, **kwargs)
     # end __call__
     # ========== END Using Signal as a Function ==========
 # end class Signal

@@ -324,7 +324,8 @@ def test_chaining():
     assert p._move_pre == [("x2", "y2")]
     assert p._move_post == [("x2", "y2")]
 
-    p.set_x.off("before_change")
+    existed = p.set_x.off("before_change")
+    assert existed
     p.move("x3", "y3")
     assert p._xy_pre == ["x1", "y1", "x2", "y2", "y3"]  # Note: x3 not updated
     assert p._xy_post == ["x1", "y1", "x2", "y2", "x3", "y3"]
@@ -335,7 +336,8 @@ def test_chaining():
     assert p._move_pre == [("x2", "y2"), ("x3", "y3")]
     assert p._move_post == [("x2", "y2"), ("x3", "y3")]
 
-    p.set_x.off("change")
+    existed = p.set_x.off("change")
+    assert existed
     p.move("x4", "y4")
     assert p._xy_pre == ["x1", "y1", "x2", "y2", "y3", "y4"]  # Note: x4 not updated
     assert p._xy_post == ["x1", "y1", "x2", "y2", "x3", "y3", "y4"]  # Note: x4 not updated
@@ -345,6 +347,9 @@ def test_chaining():
     assert p._y_post == ["y1", "y2", "y3", "y4"]
     assert p._move_pre == [("x2", "y2"), ("x3", "y3"), ("x4", "y4")]
     assert p._move_post == [("x2", "y2"), ("x3", "y3"), ("x4", "y4")]
+
+    existed = p.set_x.off("change")
+    assert not existed
 
     print("test_chaining passed!")
 

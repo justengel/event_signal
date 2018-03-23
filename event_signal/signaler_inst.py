@@ -76,7 +76,7 @@ class SignalerInstance(object):
             signal_type (str): Signal name to direct which signal to use
             func (callable)[None]: Callback function
         """
-        off_signal(self, signal_type, func)
+        return off_signal(self, signal_type, func)
 
     def fire(self, signal_type, *args, **kwargs):
         """Call all of the callback functions that are associated with a signal.
@@ -103,7 +103,7 @@ class SignalerInstance(object):
             *args: Arguments to pass to the callback functions
             **kwargs: Named arguments to pass to the callback functions
         """
-        fire_signal(self, signal_type, *args, **kwargs)
+        return fire_signal(self, signal_type, *args, **kwargs)
 
     def block(self, signal_type=None, block=True):
         """Temporarily block a specific signal or all signals from calling their callback functions.
@@ -151,5 +151,5 @@ class SignalerInstance(object):
             signal_type (str)[None]: Signal name to direct which signal to block or None to block or unblock all signals
             block (bool)[True]: Block or unblock the signals
         """
-        block_signals(self, signal_type=signal_type, block=block)
+        return block_signals(self, signal_type=signal_type, block=block)
     # ========== END Callbacks ==========
