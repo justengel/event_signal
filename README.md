@@ -469,3 +469,68 @@ print(t2.get_x())
 # 3
 assert t.get_x() != t2.get_x()
 ```
+
+### bind Qt
+
+I now provide a `bind_qt` and `unbind_qt` functions. 
+
+```python
+from event_signal import signaler, bind_qt, unbind_qt
+from qtpy import QtWidgets
+
+class MyData(object):
+    def __init__(self, name='hello'):
+        self._name = name
+
+    def get_name(self):
+        return self._name
+
+    @signaler(getter=get_name)
+    def set_name(self, name):
+        self._name = str(name)
+
+app = QtWidgets.QApplication([])
+
+widg = QtWidgets.QWidget()
+lay = QtWidgets.QVBoxLayout()
+widg.setLayout(lay)
+widg.show()
+
+data = MyData()
+data.set_name.on('change', lambda name: print('data name changed to', name))
+
+inp = QtWidgets.QLineEdit('Hello World!')
+lay.addWidget(inp)
+
+bind_qt(data, 'set_name', inp, 'setText')  # qt_signal='editingFinished'
+
+btn = QtWidgets.QPushButton('Set Hello')
+def set_hello():
+    data.set_name('Hello')
+btn.clicked.connect(set_hello)
+lay.addWidget(btn)
+
+unbind_btn = QtWidgets.QPushButton('unbind')
+def unbind_call():
+    unbind_qt(data, 'set_name', inp, 'setText')
+unbind_btn.clicked.connect(unbind_call)
+lay.addWidget(unbind_btn)
+
+app.exec_()
+```
+
+To edit what widget value is used.
+
+```python
+from event_signal import qt_binder
+
+def get_widget_value(widget):
+    if isinstance(widget, CustomWidget):
+        return widget.my_value()
+    
+    return qt_binder.get_widget_value(widget)
+    
+qt_binder.get_widget_value = get_widget_value()
+```
+
+One thing to watch out for is if functions are called multiple times or are infinitely recursive.

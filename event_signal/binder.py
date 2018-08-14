@@ -4,7 +4,8 @@ from .signaler_prop import signaler_property
 from .signaler import signaler
 
 
-__all__ = ["is_property", "is_signaler_property", "get_signaler", "bind_signals", "unbind_signals", "bind", "unbind"]
+__all__ = ["is_property", "is_signaler_property", "get_signaler", "bind_signals", "unbind_signals", "bind", "unbind",
+           'GETTER_PREFIXES']
 
 
 GETTER_PREFIXES = ["get_", "get", "is_", "is", "has_", "has"]
@@ -63,7 +64,8 @@ def get_signaler(obj, property_name):
         sig = None
 
         # Check if there is a getter
-        for getter_name in GETTER_PREFIXES:
+        for getter_prefix in GETTER_PREFIXES:
+            getter_name = getter_prefix + setter_name[3:]  # remove 'set' and replace with a getter prefix
             if hasattr(obj, getter_name):
                 sig = signaler(setter, getter=getattr(obj, getter_name))
                 break
@@ -179,11 +181,11 @@ def bind(obj1, property_name, obj2, obj2_name=None):
             >>> t1 = Test()
             >>> t2 = Test()
             >>> # Example acceptable arguments
-            >>> bind_lazy(t1, "x", t2)
-            >>> bind_lazy(t1, "x", t2, "x")
-            >>> bind_lazy(t1, "set_x", t2, "x")
-            >>> bind_lazy(t1.set_x, None, t2, "set_x")
-            >>> bind_lazy(t1.set_x, None, t2.set_x)  # Same as bind_signals(t1.set_x, t2.set_x)
+            >>> bind(t1, "x", t2)
+            >>> bind(t1, "x", t2, "x")
+            >>> bind(t1, "set_x", t2, "x")
+            >>> bind(t1.set_x, None, t2, "set_x")
+            >>> bind(t1.set_x, None, t2.set_x)  # Same as bind_signals(t1.set_x, t2.set_x)
 
     Args:
         obj1(object): First object to bind. This can either be an object with a given property_name or a
@@ -199,6 +201,10 @@ def bind(obj1, property_name, obj2, obj2_name=None):
         AttributeError: If obj1 does not have the property_name as a property or callable function or if obj2 does
             not have the obj2_name as a property or callable function.
         TypeError: If obj1_signaler or obj2_signaler does not have on or off methods to connect the signals
+
+    Returns:
+        obj1_sig (signaler): Object 1 signal that is bound to obj2_sig
+        obj2_sig (signaler): Object 2 signal that is bound to obj1_sig
     """
     if isinstance(obj1, SignalerInstance) and property_name is None:
         obj1_sig = obj1
@@ -214,6 +220,7 @@ def bind(obj1, property_name, obj2, obj2_name=None):
         obj2_sig = get_signaler(obj2, obj2_name)
 
     bind_signals(obj1_sig, obj2_sig)
+    return obj1_sig, obj2_sig
 
 
 def unbind(obj1, property_name=None, obj2=None, obj2_name=None):
@@ -260,6 +267,10 @@ def unbind(obj1, property_name=None, obj2=None, obj2_name=None):
         AttributeError: If obj1 does not have the property_name as a property or callable function or if obj2 does
             not have the obj2_name as a property or callable function.
         TypeError: If obj1_signaler or obj2_signaler does not have on or off methods to connect the signals
+
+    Returns:
+        obj1_sig (signaler): Object 1 signal that was disconnected from obj2_sig
+        obj2_sig (signaler): Object 2 signal that was disconnected from obj1_sig
     """
     if isinstance(obj1, SignalerInstance) and property_name is None:
         obj1_sig = obj1
@@ -277,3 +288,4 @@ def unbind(obj1, property_name=None, obj2=None, obj2_name=None):
         obj2_sig = get_signaler(obj2, obj2_name)
 
     unbind_signals(obj1_sig, obj2_sig)
+    return obj1_sig, obj2_sig
