@@ -210,6 +210,7 @@ t.set_x(4)
 ## Example - Signal
 Qt like signal.
 
+
 **Warning:**
 
 Qt's signals are thread safe (depending on how you connect them). They call the callback functions in the main thread.
@@ -220,8 +221,11 @@ The event_signal.Signal works like a Qt Signal with a direct connection.
 The callback functions are called in the same thread that originally called the function. If you are using Qt and use 
 this Signal from a separate thread to udate a QWidget it may not work properly and throw errors or warnings.
 
+For more information on how to make a QWidget thread safe go to <https://tasks.justengel.com/project/justengel-event-signal/wiki/signal-qt-thread-safe>
+
 Also this signal does not do any kind of type checking. Passing types into the Signal constructor ```Signal(int, str)``` 
 is just for looks and maybe code readability.
+
 ```python
 from event_signal import Signal
 
