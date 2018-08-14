@@ -29,8 +29,9 @@ Two basic signals are provided `'before_change'` and `'change'`. The signaler_pr
     
 ## Basics
 
-A signaler is a custom class decorator. It acts just like a function (it is callable). A signaler can have other 
-functions attached to it with a name. When the signaler fire is called it will call all of the attached functions.
+A signaler is a custom class that decorates a function. It acts just like a function (it is callable). A signaler can 
+have other functions attached to it with a name. When the signaler fire is called it will call all of the attached 
+functions.
 
 ```python
 from event_signal import signaler
