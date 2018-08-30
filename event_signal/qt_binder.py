@@ -3,7 +3,7 @@ from .binder import bind, unbind
 
 try:
     from qtpy import QtWidgets
-except ImportError:
+except (ImportError, Exception):  # Exception because QtPy will raise it's own error if qt is not on the system
     try:
         from PyQt5 import QtWidgets
     except ImportError:

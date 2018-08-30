@@ -82,13 +82,14 @@ Example:
 """
 from .signal_funcs import get_signal, on_signal, off_signal, fire_signal, block_signals, \
     copy_signals, copy_signals_as_bound
-from .signaler_inst import SignalerInstance
+from .signaler_inst import SignalerInstance, SignalerDescriptorInstance
+from .mp_manager import pickle_function, unpickle_function
 
 
 __all__ = ["signaler_property", "SignalerPropertyInstance"]
 
 
-class SignalerPropertyInstance(SignalerInstance):
+class SignalerPropertyInstance(SignalerDescriptorInstance):
     """Replaces a property with this class that uses callback functions for before and after a value changes.
 
     Signals (Callbacks):
@@ -109,11 +110,22 @@ class SignalerPropertyInstance(SignalerInstance):
             check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
         """
         super(SignalerPropertyInstance, self).__init__()
+        self._mp_variables.extend(['check_change', '__doc__'])
 
+        # Variables
         self.check_change = check_change
-        self.fget = fget
-        self.fset = fset
-        self.fdel = fdel
+        try:
+            self.fget = fget
+        except AttributeError:  # property fget is a readonly attribute
+            pass
+        try:
+            self.fset = fset
+        except AttributeError:  # property fset is a readonly attribute
+            pass
+        try:
+            self.fdel = fdel
+        except AttributeError:  # property fdel is a readonly attribute
+            pass
         if doc is None and fget is not None:
             doc = fget.__doc__
         self.__doc__ = doc
@@ -168,11 +180,34 @@ class SignalerPropertyInstance(SignalerInstance):
         return ret  # None usually
 
     def __call__(self, value):
-        """Set the value like a function. This makes the SignalerPropertyInstance very similar to the signaler."""
+        """Set the value like a function. This makes the SignalerPropertyInstance very similar to the signaler.
+
+        The bind function depends on this functionality.
+        """
         return self.set_value(value)
 
+    def create_signaler_instance(self, instance=None):
+        """Create and return a signaler instance."""
+        pass
 
-class signaler_property(property, SignalerInstance):
+    def __getstate__(self):
+        state = super().__getstate__()
+
+        state.update(pickle_function('fget', self.fget))
+        state.update(pickle_function('fset', self.fset))
+        state.update(pickle_function('fdel', self.fdel))
+
+        return state
+
+    def __setstate__(self, state):
+        self.fget = unpickle_function('fget', state)
+        self.fset = unpickle_function('fset', state)
+        self.fdel = unpickle_function('fdel', state)
+
+        super().__setstate__(state)
+
+
+class signaler_property(property, SignalerPropertyInstance):  # , property
     """Property that is observable through callback functions.
 
     Add a callback to function to be called when a before a property changes or after a property changes. Callbacks
@@ -238,68 +273,56 @@ class signaler_property(property, SignalerInstance):
             doc (str)[None]: Documentation for the property
             check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
         """
+        SignalerPropertyInstance.__init__(self, fget=fget, fset=fset, fdel=fdel, doc=doc, check_change=check_change)
         super(signaler_property, self).__init__(fget=fget, fset=fset, fdel=fdel, doc=doc)
-        self.event_signals = {"before_delete": [], "delete": [], "before_change": [], "change": []}
+        # self.event_signals = {"before_delete": [], "delete": [], "before_change": [], "change": []}
         self.check_change = check_change
-
-        try:
-            self.__name__ = self.fget.__name__
-        except AttributeError:
-            pass
     # end Constructor
 
-    def get_signaler_instance(self, instance=None):
-        """Return (maybe create as well) the signals mapped to the instance.
+    def create_signaler_instance(self, instance=None):
+        """Create and return a signaler instance."""
+        fget = None
+        fset = None
+        fdel = None
+        doc = self.__doc__
 
-        Args:
-            instance (object)[None]: Instance object that has signals.
-        """
-        if instance is None:
-            instance = self
-        if not hasattr(instance, "__signalers__"):
-            instance.__signalers__ = {}
-        if self not in instance.__signalers__:
-            fget = None
-            fset = None
-            fdel = None
-            doc = self.__doc__
+        # Bind the get, set, and del methods with the given instance before creating the observable property
+        if self.fget:
+            fget = self.fget.__get__(instance, instance.__class__)
+        if self.fset:
+            fset = self.fset.__get__(instance, instance.__class__)
+        if self.fdel:
+            fdel = self.fdel.__get__(instance, instance.__class__)
 
-            # Bind the get, set, and del methods with the given instance before creating the observable property
-            if self.fget:
-                fget = self.fget.__get__(instance, instance.__class__)
-            if self.fset:
-                fset = self.fset.__get__(instance, instance.__class__)
-            if self.fdel:
-                fdel = self.fdel.__get__(instance, instance.__class__)
+        # Create the new signaler for the instance with bound methods.
+        sig = SignalerPropertyInstance(fget=fget, fset=fset, fdel=fdel, doc=doc, check_change=self.check_change)
 
-            # Create the new signaler for the instance with bound methods.
-            sig = SignalerPropertyInstance(fget=fget, fset=fset, fdel=fdel, doc=doc, check_change=self.check_change)
-            instance.__signalers__[self] = sig
+        # Map all of the connected callbacks as bound methods to the instance
+        copy_signals_as_bound(self, sig, instance)
 
-            # Map all of the connected callbacks as bound methods to the instance
-            copy_signals_as_bound(self, sig, instance)
-
-        return instance.__signalers__[self]  # return an event handler object for the instance
-    # end get_callback_manager
+        return sig  # return an event handler object for the instance
 
     # ========== class decorator ==========
     def __set__(self, instance, obj):
         """Class decorator that is called for `obj.x = 1`."""
+        if instance is None:
+            return self
         sig = self.get_signaler_instance(instance)
         return sig.set_value(obj)
     # end __set__
 
-    def __get__(self, *args, **kwargs):
+    def __get__(self, instance=None, owner=None):
         """Class decorator that is called for `print(obj.x)`."""
-        if len(args) == 0 or args[0] is None:
+        if instance is None:
             return self
-        instance = args[0]
         sig = self.get_signaler_instance(instance)
         return sig.get_value()
     # end __get__
 
     def __delete__(self, instance):
         """Class decorator that is called for `del obj.x`."""
+        if instance is None:
+            return self
         sig = self.get_signaler_instance(instance)
         return sig.del_value()
 
@@ -375,10 +398,10 @@ class signaler_property(property, SignalerInstance):
                 print(MyClass.x.get_signal(obj, "before_change"))
 
         Args:
+            instance (object): Object to connec the signal with.
             signal_type (str): Signal name to direct which signal to use
 
         Args Alternative:
-            instance (object): Object to connec the signal with.
             signal_type (str): Signal name to direct which signal to use
         """
         if signal_type is None:
@@ -393,7 +416,7 @@ class signaler_property(property, SignalerInstance):
 
         return get_signal(instance, signal_type)
 
-    def on(self, *args):
+    def on(self, instance, signal_type=None, func=None):
         """Connect callback methods.
 
         Options:
@@ -432,50 +455,33 @@ class signaler_property(property, SignalerInstance):
                 MyClass.x.on(obj, "before_change", lambda *args: print("x is about to change"))
 
         Args:
+            instance (object): Object to connec the signal with.
             signal_type (str): Signal name to direct which signal to use
             func (callable): Callback function
 
         Args Alternative:
-            instance (object): Object to connec the signal with.
             signal_type (str): Signal name to direct which signal to use
             func (callable): Callback function
+
+        Returns:
+            func (callable): The callable function that was given or a decorator to decorate a function.
         """
-        length = len(args)
-        if length > 3 or length == 0:
-            raise ValueError("Invalid number of arguments given! Give either 'instance', 'signal_type', and 'function' "
-                             "or just a 'signal_type' and 'function'.\n"
-                             "The 'function argument is optional if you are using this as a function decorator.'")
+        if isinstance(instance, str) and (signal_type is None or callable(signal_type)):
+            # Class property called as a decorator
+            instance, signal_type, func = None, instance, signal_type
 
-        first = args[0]
-        if length != 3 and isinstance(first, str) and not hasattr(first, "__signalers__"):
-            # Method decorator
-            return self._on_method_decorator(first, *args[1:])
+        sig = self.get_signaler_instance(instance)
+        if func is None:
+            def decorator(func):
+                sig.on(signal_type, func)
+                return func
+            return decorator
+        elif sig is self:
+            return super().on(signal_type, func)
         else:
-            return self._on_instance(first, *args[1:])
+            return sig.on(signal_type, func)
 
-    def _on_method_decorator(self, signal_type, func=None):
-        """Connect the signal with the given callback function."""
-        if func is None:
-            def wrapper(func):
-                self.on(signal_type, func)
-                return func
-            return wrapper
-
-        on_signal(self, signal_type, func)
-        return func
-
-    def _on_instance(self, instance, signal_type, func=None):
-        """Connect the signal with the given callback function for the instance."""
-        callback = self.get_signaler_instance(instance)
-        if func is None:
-            def wrapper(func):
-                callback.on(signal_type, func)
-                return func
-            return wrapper
-
-        return callback.on(signal_type, func)
-
-    def off(self, *args):
+    def off(self, instance, signal_type=None, func=None):
         """Disconnect from a signal.
 
         Options:
@@ -527,29 +533,20 @@ class signaler_property(property, SignalerInstance):
             instance (object): Object to connect the signal with.
             signal_type (str): Signal name to direct which signal to use
             func (callable)[None]: Callback function
+
+        Returns:
+            existed (bool): True if the given function was attached to the signal. Also True if the given func argument
+                was None and there was at least 1 function attached to the signal.
         """
-        length = len(args)
-        if length > 3 or length == 0:
-            raise ValueError("Invalid number of arguments given! Give either 'instance', 'signal_type', and 'function' "
-                             "or just a 'signal_type' and 'function'.\n"
-                             "The 'function argument is optional if you are using this as a function decorator.'")
+        if isinstance(instance, str) and (signal_type is None or callable(signal_type)):
+            # Class property called as a decorator
+            instance, signal_type, func = None, instance, signal_type
 
-        first = args[0]
-        if length != 3 and isinstance(first, str) and not hasattr(first, "__signalers__"):
-            # Method decorator
-            return self._off_method_decorator(first, *args[1:])
+        sig = self.get_signaler_instance(instance)
+        if sig is self:
+            return super().off(signal_type, func)
         else:
-            return self._off_instance(first, *args[1:])
-
-    def _off_method_decorator(self, signal_type, func=None):
-        """Disconnect the signal from the given callback function (or all if None was given)."""
-        off_signal(self, signal_type, func)
-        return func
-
-    def _off_instance(self, instance, signal_type, func=None):
-        """Disconnect the signal from the given callback function (or all if None was given) for the instance."""
-        callback = self.get_signaler_instance(instance)
-        return callback.off(signal_type, func)
+            return sig.off(signal_type, func)
 
     def fire(self, *args, **kwargs):
         """Trigger the callback functions connected to the signal.
@@ -558,10 +555,11 @@ class signaler_property(property, SignalerInstance):
             instance (object): Object to connect the signal with.
             signal_type (str): Signal name to direct which signal to use
             *args, **kwargs: Callback function arguments
-        """
-        instance = self
-        signal_type = None
 
+        Args Alternative:
+            signal_type (str): Signal name to direct which signal to use
+            *args, **kwargs: Callback function arguments
+        """
         length = len(args)
         if length == 0:
             raise ValueError("Invalid number of arguments given! Give either 'instance', 'signal_type', and '*args' "
@@ -569,19 +567,18 @@ class signaler_property(property, SignalerInstance):
 
         first_arg = args[0]
         if isinstance(first_arg, str):
+            # Signal type given as first argument
             signal_type = first_arg
             args = args[1:]
-        elif len(args) > 1:
+            return super().fire(signal_type, *args, **kwargs)
+        else:
+            # Instance given as first argument
             instance = self.get_signaler_instance(first_arg)
             signal_type = args[1]
             args = args[2:]
-        else:
-            raise ValueError("Invalid number of arguments given! Give either 'instance', 'signal_type', and '*args' "
-                             "or just a 'signal_type' and '*args'.")
+            return instance.fire(signal_type, *args, **kwargs)
 
-        return fire_signal(instance, signal_type, *args, **kwargs)
-
-    def block(self, *args, **kwargs):
+    def block(self, instance, signal_type=None, block=True):
         """Block the callback functions connected to the signal or signals.
 
         Args:
@@ -593,24 +590,12 @@ class signaler_property(property, SignalerInstance):
             signal_type (str)[None]: Signal name to direct which signal to use or None for all signals
             block (bool)[True]: Block or unblock the signals
         """
-        instance = kwargs.get('instance', self)
-        signal_type = kwargs.get('signal_type', None)
-        block = kwargs.get('block', True)
+        if isinstance(instance, str) and (signal_type is None or isinstance(signal_type, bool)):
+            # Class property called as a decorator
+            instance, signal_type, block = None, instance, signal_type
 
-        length = len(args)
-        if length > 0:
-            first_arg = args[0]
-            if isinstance(first_arg, (str, list, tuple)) or first_arg is None:
-                # First argument is a signal so operate on this object
-                signal_type = first_arg
-                if length > 1:
-                    block = args[1]
-
-            else:
-                instance = self.get_signaler_instance(first_arg)
-                if length > 1:
-                    signal_type = args[1]
-                if length > 2:
-                    block = args[2]
-
-        return block_signals(instance, signal_type=signal_type, block=block)
+        sig = self.get_signaler_instance(instance)
+        if sig is self:
+            return super().block(signal_type, block)
+        else:
+            return sig.block(signal_type, block)

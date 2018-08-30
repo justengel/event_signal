@@ -1,4 +1,4 @@
-from event_signal import Signal, signal_change
+from event_signal import Signal
 
 
 def test_signal():
@@ -147,47 +147,7 @@ def test_signal_block():
     print("test_signal_block passed!")
 
 
-def test_signal_change():
-    class MyClass(object):
-        def __init__(self, x=0):
-            self._x = x
-
-        def get_x(self):
-            return self._x
-
-        @signal_change
-        def set_x(self, x):
-            self._x = x
-
-    t = MyClass()
-    vals = [None]
-
-    # ===== Test connect =====
-    def save_value(value):
-        vals[0] = value
-
-    t.set_x.connect(save_value)
-
-    assert vals[0] is None
-    assert t.get_x() == 0
-    t.set_x(1)
-    assert t.get_x() == 1
-    assert vals[0] == 1
-
-    # ===== Test Disconnect =====
-    t.set_x.disconnect(save_value)
-    vals[0] = None
-    assert vals[0] is None
-    assert t.get_x() == 1
-    t.set_x(2)
-    assert t.get_x() == 2
-    assert vals[0] is None
-
-    print("test_signal_change passed!")
-
-
 if __name__ == '__main__':
     test_signal()
     test_signal_block()
-    test_signal_change()
     print("All tests passed!")

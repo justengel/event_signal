@@ -1,8 +1,4 @@
 """
-event
-SeaLandAire Technologies
-@author: jengel
-
 The event module was created to emulate Qt's Signal. It is very convenient to be able to have
 multiple functions called from one function call. This class was made for that specific purpose.
 
@@ -66,10 +62,10 @@ How it works:
     The above like of code first gets a CallbackManager with `my_class.something_happened`. The
     `.connect(function)` is calling the CallbackManager's 'connect' method.  
 """
-from .signaler_inst import SignalerInstance
+from .signaler_inst import SignalerInstance, SignalerDescriptorInstance
 
 
-__all__ = ["Signal", "signal_change"]
+__all__ = ["Signal"]
 
 
 class CallbackManager(SignalerInstance):
@@ -79,6 +75,8 @@ class CallbackManager(SignalerInstance):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
+        self._mp_variables.extend(['args', 'kwargs'])
+
         self.event_signals["change"] = []
         self.args = args
         self.kwargs = kwargs
@@ -152,7 +150,7 @@ class CallbackManager(SignalerInstance):
 # end class CallbackManager
 
 
-class Signal(SignalerInstance):
+class Signal(SignalerDescriptorInstance):
     """The Signal class is the connection between a class and having multiple callback functions.
     
     Example:
@@ -182,25 +180,20 @@ class Signal(SignalerInstance):
             something_happened("This also happened!")
             something_happened.emit("This happened!") # alias for __call__ to emulate Qt Signal
     """
+
+    # __signalers__ = {}  # Need an annoying class global variable for multiprocessing. I don't see any way around this
+
     def __init__(self, *args):
         super().__init__()
         self.args = args
-        self.__signalers__ = {}
+        self._mp_variables.extend(['args'])
     # end Constructor
 
-    def get_signaler_instance(self, instance=None):
-        """Return (maybe create) the instance CallbackManager."""
-        if instance is None:
-            instance = self
-        if not hasattr(instance, "__signalers__"):
-            instance.__signalers__ = {}
-        if self not in instance.__signalers__:
-            instance.__signalers__[self] = CallbackManager(*self.args)
-
-        return instance.__signalers__[self]  # return an event handler object for the instance
-    # end get_signaler_instance
-
-    get_callbackmanager = get_signaler_instance
+    def create_signaler_instance(self, instance=None):
+        """Create and return a signaler instance."""
+        sig = CallbackManager(*self.args)
+        # sig.name = self.name
+        return sig
 
     # ========== Using Signal as a class decorator (Recommended) ==========
     def __set__(self, instance, func):
@@ -218,7 +211,7 @@ class Signal(SignalerInstance):
                 #  '=' calls this `__set__` method which adds the given func to the instances
                 # CallbackManager callback list 
         """
-        cmngr = self.get_callbackmanager(instance)
+        cmngr = self.get_signaler_instance(instance)
         cmngr.connect(func)
     # end __set__
 
@@ -236,26 +229,26 @@ class Signal(SignalerInstance):
                 m.something_happened # returns the instance's CallbackManager allowing
                 # `m.something_happened()` and `m.something_happened.connect(function)` 
         """
-        return self.get_callbackmanager(instance)
+        return self.get_signaler_instance(instance)
     # end __get__
     # ========== END Using Signal as a class decorator (Recommended) ==========
 
     # ========== Using Signal as a function ==========
     def connect(self, func):
         """Connect a function to this Signal instance."""
-        cmngr = self.get_callbackmanager(self)
+        cmngr = self.get_signaler_instance(self)
         return cmngr.connect(func)
     # end connect
     
     def disconnect(self, func):
         """Disconnect a function from this Signal instance."""
-        cmngr = self.get_callbackmanager(self)
+        cmngr = self.get_signaler_instance(self)
         return cmngr.disconnect(func)
     # end disconnect
 
     def block(self, block=True):
         """Temporarily block a signal from calling callback functions."""
-        cmngr = self.get_callbackmanager(self)
+        cmngr = self.get_signaler_instance(self)
         return cmngr.block(block=block)
     
     def emit(self, *args, **kwargs):
@@ -265,92 +258,8 @@ class Signal(SignalerInstance):
     
     def __call__(self, *args, **kwargs):
         """Emit and call this Signal instance event handler functions."""
-        cmngr = self.get_callbackmanager(self)
+        cmngr = self.get_signaler_instance(self)
         return cmngr(*args, **kwargs)
     # end __call__
     # ========== END Using Signal as a Function ==========
 # end class Signal
-
-
-class signal_change(Signal):
-    """Decorator that signals when a function is called.
-
-    Example:
-
-            .. code-block:: python
-
-                >>> class MyClass(object):
-                >>>     def __init__(self, x=0):
-                >>>         self._x = x
-                >>>
-                >>>     def get_x(self):
-                >>>         return self._x
-                >>>
-                >>>     @signal_change
-                >>>     def set_x(self, x):
-                >>>         self._x = x
-                >>>
-                >>> m = MyClass(0)
-                >>> m.set_x.connect(lambda: print(m.get_x()))
-                >>> m.set_x(1)
-    """
-    def __init__(self, func):
-        self.myfunc = func
-        self.__doc__ = self.myfunc.__doc__
-        super().__init__()
-
-    def get_signaler_instance(self, instance=None):
-        """Return (maybe create) the instance CallbackManager."""
-        if instance is None:
-            instance = self
-        if not hasattr(instance, "__signalers__"):
-            instance.__signalers__ = {}
-        if self not in instance.__signalers__:
-            instance.__signalers__[self] = CallbackManager(*self.args)
-            instance.__signalers__[self].connect(self.myfunc.__get__(instance, instance.__class__))  # Bounded method
-        return instance.__signalers__[self]  # return an event handler object for the instance
-    # end get_signaler_instance
-
-    get_callbackmanager = get_signaler_instance
-
-
-if __name__ == "__main__":
-    class Test:
-        mysig = Signal(str)
-
-    t = Test()
-
-    def hello_world(name="World"):
-        print("Hello", name+"!")
-#     t.mysig.connect(hello_world)
-    t.mysig = hello_world
-    t.mysig = lambda name="World": print("here", name)
-    t.mysig.emit()
-    t.mysig.emit("jack")
-    t.mysig()
-
-    print()
-    print("Using Signal as a function")
-    test_sig = Signal(str)
-    test_sig.connect(hello_world)
-    # test_sig = lambda name="World": print("here", name) # This does not work!
-    test_sig.connect(lambda name="World": print("here", name))
-    test_sig("hello")
-    test_sig.emit("hi")
-
-    # ========== Test SignalChange ==========
-    class MyClass(object):
-        def __init__(self, x=0):
-            self._x = x
-
-        def get_x(self):
-            return self._x
-
-        @signal_change
-        def set_x(self, x):
-            self._x = x
-
-    m = MyClass(0)
-    m.set_x.connect(print)  # Run after the normal set_x has been called.
-    m.set_x.connect(lambda x: print("set_x called with a value of", repr(x)))
-    m.set_x(1)

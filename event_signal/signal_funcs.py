@@ -1,7 +1,11 @@
 
 
-__all__ = ["get_signal", "on_signal", "off_signal", "fire_signal", "block_signals", "add_signal",
+__all__ = ['SignalError', "get_signal", "on_signal", "off_signal", "fire_signal", "block_signals", "add_signal",
            "copy_signals", "copy_signals_as_bound"]
+
+
+class SignalError(ValueError):
+    pass
 
 
 def get_signal(obj, signal_type):
@@ -14,7 +18,7 @@ def get_signal(obj, signal_type):
             sig = obj.event_signals[signal_type]
         return [func for func in sig]
     except (KeyError, AttributeError) as error:
-        raise ValueError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
+        raise SignalError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
                          "signal.".format(repr(signal_type))) from error
 
 
@@ -62,8 +66,8 @@ def fire_signal(obj, signal_type, *args, **kwargs):
         sig = obj.event_signals[signal_type]
     except (KeyError, AttributeError) as error:
         sig = []
-        raise ValueError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
-                         "signal.".format(repr(signal_type))) from error
+        raise SignalError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
+                          "signal.".format(repr(signal_type))) from error
 
     for func in sig:
         func(*args, **kwargs)

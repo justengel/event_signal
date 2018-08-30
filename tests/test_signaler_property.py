@@ -31,6 +31,8 @@ def test_property():
     except AttributeError:
         pass
 
+    assert isinstance(XTest.x, property)
+
     print("test_property passed!")
 
 

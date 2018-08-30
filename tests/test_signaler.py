@@ -282,7 +282,7 @@ def test_chaining():
             self._move_post.append(args)
 
         def __repr__(self):
-            return self.__class__.__name__ + "(%d, %d)" % (self.get_x(), self.get_y())
+            return self.__class__.__name__ + "(%s, %s)" % (str(self.get_x()), str(self.get_y()))
 
     p = Point()
     assert p._xy_pre == []

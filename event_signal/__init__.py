@@ -4,8 +4,10 @@ from .signaler import signaler
 from .signaler_prop import signaler_property, SignalerPropertyInstance
 from .method_observer_metaclass import MethodObserver, MethodObserverMeta
 
-from .event import Signal, signal_change
+from .signal_qt import Signal
 
 from .binder import is_property, is_signaler_property, get_signaler, bind_signals, unbind_signals, bind, unbind
 
 from .qt_binder import bind_qt, unbind_qt
+
+from .mp_manager import pickle_module, unpickle_module, pickle_function, unpickle_function, MpSignalManager
