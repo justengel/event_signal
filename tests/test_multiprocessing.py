@@ -34,6 +34,9 @@ class Point(object):
     def move_z(self, z):
         self.z = z
 
+    def move_z_parent(self, z):
+        Point.z.fire(self, 'change', z)
+
 
 class SimpleProperty(object):
     def __init__(self, a='a'):
@@ -72,7 +75,7 @@ def test_mp_signal():
     proc.start()
     # time.sleep(1)
     proc.join()
-    time.sleep(0.1)
+    # time.sleep(60)
 
     print(values)
     assert values == [[0, 1], [1, 2]]
@@ -136,6 +139,28 @@ def test_mp_signaler_property():
     assert values == [[0], [1]]
 
 
+def test_mp_signaler_property_parent():
+    p = Point(-1, -1, -1)
+
+    values = []
+    def save_moved(z):
+        values.append([z])
+
+    Point.z.on(p, 'change', save_moved)
+
+    p.move_z_parent(0)
+    assert values == [[0]]
+
+    proc = multiprocessing.Process(target=p.move_z_parent, args=(1,))
+    proc.start()
+    # time.sleep(1)
+    proc.join()
+    time.sleep(0.1)
+
+    print(values)
+    assert values == [[0], [1]]
+
+
 def test_signaler_function():
     values = []
 
@@ -162,7 +187,8 @@ if __name__ == '__main__':
 
     test_mp_signal()
     test_mp_signaler()
-    # test_multiprocessing_property()
+    test_multiprocessing_property()
     test_mp_signaler_property()
+    test_mp_signaler_property_parent()
     test_signaler_function()
     print("All tests passed!")

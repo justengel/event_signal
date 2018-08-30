@@ -11,9 +11,10 @@ class SignalerInstance(object):
     def __init__(self):
         self.event_signals = {}
         self.name = str(id(self))
+        self.mp_queue = None
 
         # Multiprocessing variables to save
-        self._mp_variables = ['name']
+        self._mp_variables = ['name', 'mp_queue']
 
     # ========== Callbacks ==========
     get_signal = get_signal
@@ -115,16 +116,17 @@ class SignalerInstance(object):
             *args: Arguments to pass to the callback functions
             **kwargs: Named arguments to pass to the callback functions
         """
-        if not getattr(self, 'is_separate_process', False):
-            # Main process fire a normal signal
+        # Main process fire a normal signal
+        fire_signal(self, signal_type, *args, **kwargs)
+
+    def fire_queue(self, signal_type, *args, **kwargs):
+        """Fire the signal by putting the data on a queue to be called in the main process."""
+        if self.mp_queue:
+            self.mp_queue.put([self.name, signal_type, args, kwargs])
+        try:
             fire_signal(self, signal_type, *args, **kwargs)
-        else:
-            # Signal is in a separate process. Put the signal on the Queue
-            MpSignalManager.fire_signal(self.name, signal_type, *args, **kwargs)
-            try:
-                fire_signal(self, signal_type, *args, **kwargs)
-            except SignalError:
-                pass
+        except SignalError:
+            pass
 
     def block(self, signal_type=None, block=True):
         """Temporarily block a specific signal or all signals from calling their callback functions.
@@ -183,38 +185,33 @@ class SignalerInstance(object):
             The main process should connect to signals with the 'on' method. The multiprocessing should emit signals
             with the 'fire' method.
         """
+        # Set the default queue
+        if self.mp_queue is None:
+            self.mp_queue = MpSignalManager.QUEUE
+
+        # Set and run the DEFAULT_MANAGER
+        if MpSignalManager.DEFAULT_MANAGER is None:
+            MpSignalManager.DEFAULT_MANAGER = MpSignalManager()
+            MpSignalManager.DEFAULT_MANAGER.start()
+
+        # Register the signal, so the appropriate signal can be called.
+        MpSignalManager.register_signal(self.name, self)
+
+        # Get the variables to share with the other process
         state = {key: getattr(self, key, None) for key in self._mp_variables}
         state['_mp_variables'] = self._mp_variables
         state['event_signals'] = list(self.event_signals.keys())
 
-        # Check if this is the main process
-        if not hasattr(self, 'is_separate_process'):
-            self.is_separate_process = False
-        state['is_separate_process'] = not self.is_separate_process
-
-        if not self.is_separate_process:
-            # Set the main queue
-            if MpSignalManager.QUEUE is None:
-                MpSignalManager.set_queue()
-            state['MPMANAGER_QUEUE'] = MpSignalManager.QUEUE
-
-            # Set and run the DEFAULT_MANAGER
-            if MpSignalManager.DEFAULT_MANAGER is None:
-                MpSignalManager.DEFAULT_MANAGER = MpSignalManager()
-                MpSignalManager.DEFAULT_MANAGER.start()
-
-        # Register the signal, so the appropriate signal can be called.
-        MpSignalManager.register_signal(self.name, self)
+        # Change the fire function
+        state['fire'] = self.fire_queue
 
         return state
 
     def __setstate__(self, state):
         """Recreate the object after unpickling."""
-        if 'MPMANAGER_QUEUE' in state:
-            # Set the queue to be the same queue
-            MpSignalManager.QUEUE = state.pop('MPMANAGER_QUEUE')
-
         # Default variables
+        # self.mp_queue = state.pop('mp_queue', self.mp_queue)
+        # self.fire = state.pop('fire', self.fire)
         self.is_separate_process = state.pop('is_separate_process', True)
         self.event_signals = {key: [] for key in state.pop('event_signals')}
 

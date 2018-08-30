@@ -125,7 +125,8 @@ class MpSignalManager(object):
             name (str): Name to register the signaler instance with.
             signal_inst (event_signal.SignalerInstance/Signaler/Signal): Signaler instance to register
         """
-        cls.SIGNALS[name] = signal_inst
+        if name not in cls.SIGNALS:
+            cls.SIGNALS[name] = signal_inst
 
     @classmethod
     def get_signal(cls, name):
