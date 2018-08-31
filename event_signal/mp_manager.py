@@ -10,6 +10,7 @@ import importlib
 
 import threading
 import multiprocessing
+from queue import Empty
 
 
 __all__ = ['pickle_module', 'unpickle_module', 'pickle_function', 'unpickle_function', 'MpSignalManager']
@@ -107,6 +108,31 @@ class MpSignalManager(object):
     QUEUE = multiprocessing.Queue()
     SIGNALS = {}
     DEFAULT_MANAGER = None
+    QUEUE_TIMEOUT = 2
+
+    @classmethod
+    def run_signal(cls, name, signal_type=None, *args, **kwargs):
+        """Get the signal from the name and fire the signal.
+
+        Args:
+            name (str): Unique signal name that is registered.
+            signal_type (str): Signal type.
+            *args (tuple): Positional arguments to fire the signal with.
+            **kwargs (dict): Keyword arguments to fire the signal with.
+
+        Alternate Args:
+            name (list/tuple): List of items that was taken off of a Queue
+        """
+        if isinstance(name, (list, tuple)):
+            name, signal_type, args, kwargs = name
+
+        # Get the registered signal
+        sig_inst = cls.get_signal(name)
+
+        # Check if a valid signal was found
+        if sig_inst is not None and signal_type is not None:
+            # Fire the signal
+            sig_inst.fire(signal_type, *args, **kwargs)
 
     @classmethod
     def fire_signal(cls, name, sig, *args, **kwargs):
@@ -162,18 +188,15 @@ class MpSignalManager(object):
         """Run the thread until the program stops."""
         self.alive.set()
         while self.alive.is_set():
-            name, sig, args, kwargs = MpSignalManager.QUEUE.get()
-            sig_inst = self.get_signal(name)
-
-            # Check if a valid signal was found
-            if sig_inst is not None and sig is not None:
-                # Fire the signal
-                sig_inst.fire(sig, *args, **kwargs)
+            try:
+                queue_items = MpSignalManager.QUEUE.get(timeout=self.QUEUE_TIMEOUT)
+                self.run_signal(queue_items)
+            except Empty:
+                pass
 
     def close(self):
         """Close the thread properly."""
         self.alive.clear()
-        self.fire_signal(None, None)  # Pump the queue
 
     def __getstate__(self):
         """Return the pickling state."""
