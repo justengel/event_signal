@@ -3,6 +3,7 @@
 This works by saving a signal with a name. The other process should queue the signal name, signal to be fired,
 arguments, and keyword arguments. A thread is spawned in the main process to read this queue and fire the real signal.
 """
+import sys
 import marshal
 import types
 import importlib
@@ -25,7 +26,9 @@ def unpickle_module(value):
     """Pickle a module."""
     if isinstance(value, str) and value.startswith('__module__.'):
         name, package = value.replace('__module__.', '').replace('__package__.', '').split(';')
-        value = importlib.import_module(name, package)
+        value = sys.modules.get(name, None)
+        if value is None:
+            value = importlib.import_module(name, package)
     return value
 
 
