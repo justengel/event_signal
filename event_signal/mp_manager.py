@@ -142,23 +142,25 @@ class SignalEvent(object):
             consumer_class (class/object): Class to create a new consumer with.
         """
         # Set the Queue used for message passing
-        if not queue:
-            if not manager:
-                manager = SignalEvent.MP_MANAGER = multiprocessing.Manager()
-            queue = manager.Queue()
-        SignalEvent.QUEUE = queue
+        if SignalEvent.QUEUE is None:
+            if not queue:
+                if not manager:
+                    manager = SignalEvent.MP_MANAGER = multiprocessing.Manager()
+                queue = manager.Queue()
+            SignalEvent.QUEUE = queue
 
         # Set the thread queue consumer (DEFAULT_MANAGER)
-        if not consumer:
-            if not consumer_class:
-                consumer_class = SignalEvent.DEFAULT_MANAGER_CLASS
-            consumer = consumer_class()
+        if SignalEvent.DEFAULT_MANAGER is None:
+            if not consumer:
+                if not consumer_class:
+                    consumer_class = SignalEvent.DEFAULT_MANAGER_CLASS
+                consumer = consumer_class()
 
-        SignalEvent.DEFAULT_MANAGER = consumer
-        try:
-            SignalEvent.DEFAULT_MANAGER.start()
-        except Exception:
-            pass
+            SignalEvent.DEFAULT_MANAGER = consumer
+            try:
+                SignalEvent.DEFAULT_MANAGER.start()
+            except Exception:
+                pass
 
     @classmethod
     def fire_signal(cls, name, sig, *args, **kwargs):
