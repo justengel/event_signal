@@ -60,6 +60,8 @@ def run_calculation(a, b):
 
 
 def test_mp_signal():
+    event_signal.multiprocessing_support()
+
     p = Point(-1, -1, -1)
 
     values = []
@@ -82,6 +84,8 @@ def test_mp_signal():
 
 
 def test_mp_signaler():
+    event_signal.multiprocessing_support()
+
     p = Point(-1, -1, -1)
 
     values = []
@@ -104,6 +108,8 @@ def test_mp_signaler():
 
 
 def test_multiprocessing_property():
+    event_signal.multiprocessing_support()
+
     sp = SimpleProperty()
 
     sp.test_set_a('a1')
@@ -118,6 +124,8 @@ def test_multiprocessing_property():
 
 
 def test_mp_signaler_property():
+    event_signal.multiprocessing_support()
+
     p = Point(-1, -1, -1)
 
     values = []
@@ -140,6 +148,8 @@ def test_mp_signaler_property():
 
 
 def test_mp_signaler_property_parent():
+    event_signal.multiprocessing_support()
+
     p = Point(-1, -1, -1)
 
     values = []
@@ -162,6 +172,8 @@ def test_mp_signaler_property_parent():
 
 
 def test_signaler_function():
+    event_signal.multiprocessing_support()
+
     values = []
 
     def save_results(value):

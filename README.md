@@ -33,7 +33,7 @@ Event signals now work with multiprocessing!
 
 ```python
 import multiprocessing as mp
-from event_signal import signaler
+from event_signal import signaler, multiprocessing_support
 
 signaler(fire_results=True)
 def run_calculation(a, b):
@@ -41,6 +41,10 @@ def run_calculation(a, b):
     
 if __name__ == '__main__':
     mp.freeze_support()
+    
+    # Creates a Queue for message passing and creates a consumer thread to fire signals in the main process.
+    multiprocessing_support()
+    
     
     results = []
     

@@ -1,5 +1,5 @@
 from .signal_funcs import SignalError, get_signal, on_signal, off_signal, fire_signal, block_signals
-from .mp_manager import MpSignalManager
+from .mp_manager import SignalEvent, MpSignalManager
 
 
 __all__ = ["SignalerInstance", 'SignalerDescriptorInstance']
@@ -11,10 +11,9 @@ class SignalerInstance(object):
     def __init__(self):
         self.event_signals = {}
         self.name = str(id(self))
-        self.mp_queue = None
 
         # Multiprocessing variables to save
-        self._mp_variables = ['name', 'mp_queue']
+        self._mp_variables = ['name']
 
     # ========== Callbacks ==========
     get_signal = get_signal
@@ -121,8 +120,7 @@ class SignalerInstance(object):
 
     def fire_queue(self, signal_type, *args, **kwargs):
         """Fire the signal by putting the data on a queue to be called in the main process."""
-        if self.mp_queue:
-            self.mp_queue.put([self.name, signal_type, args, kwargs])
+        SignalEvent.fire_signal(self.name, signal_type, *args, **kwargs)
         try:
             fire_signal(self, signal_type, *args, **kwargs)
         except SignalError:
@@ -185,22 +183,16 @@ class SignalerInstance(object):
             The main process should connect to signals with the 'on' method. The multiprocessing should emit signals
             with the 'fire' method.
         """
-        # Set the default queue
-        if self.mp_queue is None:
-            self.mp_queue = MpSignalManager.QUEUE
-
-        # Set and run the DEFAULT_MANAGER
-        if MpSignalManager.DEFAULT_MANAGER is None:
-            MpSignalManager.DEFAULT_MANAGER = MpSignalManager()
-            MpSignalManager.DEFAULT_MANAGER.start()
-
-        # Register the signal, so the appropriate signal can be called.
-        MpSignalManager.register_signal(self.name, self)
-
         # Get the variables to share with the other process
         state = {key: getattr(self, key, None) for key in self._mp_variables}
         state['_mp_variables'] = self._mp_variables
         state['event_signals'] = list(self.event_signals.keys())
+
+        # Register the signal, so the appropriate signal can be called.
+        SignalEvent.register_signal(self.name, self)
+
+        # Share SignalEvent queues
+        state['SignalEvent.QUEUE'] = SignalEvent.QUEUE
 
         # Change the fire function
         state['fire'] = self.fire_queue
@@ -210,8 +202,7 @@ class SignalerInstance(object):
     def __setstate__(self, state):
         """Recreate the object after unpickling."""
         # Default variables
-        # self.mp_queue = state.pop('mp_queue', self.mp_queue)
-        # self.fire = state.pop('fire', self.fire)
+        SignalEvent.QUEUE = state.pop('SignalEvent.QUEUE', SignalEvent.QUEUE)
         self.is_separate_process = state.pop('is_separate_process', True)
         self.event_signals = {key: [] for key in state.pop('event_signals')}
 

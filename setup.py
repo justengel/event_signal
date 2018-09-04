@@ -43,10 +43,10 @@ requirements = parse_requirements('requirements.txt')
 
 if __name__ == "__main__":
     setup(name="event_signal",
-          version="1.6.2",
+          version="1.6.3",
           description="Library to help notify when something has changed.",
           url="https://github.com/justengel/event_signal",
-          download_url="https://github.com/justengel/event_signal/archive/v1.6.2.tar.gz",
+          download_url="https://github.com/justengel/event_signal/archive/v1.6.3.tar.gz",
 
           keywords=["signal", "observer", "signaler", "event", "javascript events", "bind"],
 

@@ -10,4 +10,5 @@ from .binder import is_property, is_signaler_property, get_signaler, bind_signal
 
 from .qt_binder import bind_qt, unbind_qt
 
-from .mp_manager import pickle_module, unpickle_module, pickle_function, unpickle_function, MpSignalManager
+from .mp_manager import pickle_module, unpickle_module, pickle_function, unpickle_function, MpSignalManager, \
+    SignalEvent, multiprocessing_support
