@@ -1,23 +1,29 @@
+import os
 from .signaler import signaler
 from .binder import bind, unbind
 
 try:
-    from qtpy import QtWidgets
-except (ImportError, Exception):  # Exception because QtPy will raise it's own error if qt is not on the system
+    from PyQt5 import QtWidgets
+    os.environ['QT_API'] = 'pyqt5'  # Prevent annoying qtpy warning about chaning qt versions
+except ImportError:
     try:
-        from PyQt5 import QtWidgets
+        from PySide2 import QtWidgets
+        os.environ['QT_API'] = 'pyside2'  # Prevent annoying qtpy warning about chaning qt versions
     except ImportError:
         try:
             from PyQt4 import QtGui as QtWidgets
+            os.environ['QT_API'] = 'pyqt4'  # Prevent annoying qtpy warning about chaning qt versions
         except ImportError:
             try:
-                from PySide2 import QtWidgets
+                from PySide import QtGui as QtWidgets
+                os.environ['QT_API'] = 'pyside'  # Prevent annoying qtpy warning about chaning qt versions
             except ImportError:
-                try:
-                    from PySide import QtGui as QtWidgets
-                except ImportError:
-                    QtWidgets = None
-                    # print('Cannot bind_qt or unbind_qt. The qtpy library is not installed!')
+                QtWidgets = None
+                # print('Cannot bind_qt or unbind_qt. The qtpy library is not installed!')
+try:
+    from qtpy import QtWidgets
+except (ImportError, Exception):  # Exception because QtPy will raise it's own error if qt is not on the system
+    pass
 
 
 __all__ = ["get_qt_signal_name", "bind_qt", "unbind_qt", 'QT_SIGNALS']
