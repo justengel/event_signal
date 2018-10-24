@@ -86,7 +86,7 @@ class SignalerDecoratorInstance(SignalerDescriptorInstance):
         pass
 
     def __getstate__(self):
-        state = super().__getstate__()
+        state = super(SignalerDecoratorInstance, self).__getstate__()
 
         state.update(pickle_function('func', self.func))
         state.update(pickle_function('getter', self.getter))
@@ -100,7 +100,7 @@ class SignalerDecoratorInstance(SignalerDescriptorInstance):
         self.func = unpickle_function('func', state)
         self.getter = unpickle_function('getter', state)
 
-        super().__setstate__(state)
+        super(SignalerDecoratorInstance, self).__setstate__(state)
 
 
 class signaler(SignalerDecoratorInstance):

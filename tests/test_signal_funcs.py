@@ -1,4 +1,4 @@
-from event_signal import get_signal, on_signal, off_signal, fire_signal, block_signals, add_signal
+from event_signal import SignalError, get_signal, on_signal, off_signal, fire_signal, block_signals, add_signal
 
 
 def test_add_signal_to_class():
@@ -99,7 +99,7 @@ def test_add_signal_to_obj():
 def test_get_signal():
     class SignalTest(object):
         def __init__(self):
-            super().__init__()
+            super(SignalTest, self).__init__()
             self.event_signals = {"testing": []}
 
     t = SignalTest()
@@ -121,13 +121,19 @@ def test_get_signal():
     t.event_signals["testing"].remove(blah)
     assert get_signal(t, "testing") == []
 
+    try:
+        get_signal(t, 'signal that does not exist')
+        raise AssertionError("get_signal should raise an error if the signal does not exist.")
+    except SignalError:
+        pass
+
     print("test_get_signal passed!")
 
 
 def test_on_signal():
     class SignalTest(object):
         def __init__(self):
-            super().__init__()
+            super(SignalTest, self).__init__()
             self.event_signals = {"testing": []}
 
     t = SignalTest()
@@ -156,7 +162,7 @@ def test_on_signal():
 def test_off_signal():
     class SignalTest(object):
         def __init__(self):
-            super().__init__()
+            super(SignalTest, self).__init__()
             self.event_signals = {"testing": []}
 
     t = SignalTest()
@@ -188,7 +194,7 @@ def test_off_signal():
 def test_fire_signal():
     class SignalTest(object):
         def __init__(self):
-            super().__init__()
+            super(SignalTest, self).__init__()
             self.event_signals = {"testing": []}
 
     t = SignalTest()
@@ -215,7 +221,7 @@ def test_fire_signal():
 def test_block_signal():
     class SignalTest(object):
         def __init__(self):
-            super().__init__()
+            super(SignalTest, self).__init__()
             self.event_signals = {"testing": [], "test2": []}
 
     t = SignalTest()

@@ -191,7 +191,7 @@ class SignalerPropertyInstance(SignalerDescriptorInstance):
         pass
 
     def __getstate__(self):
-        state = super().__getstate__()
+        state = super(SignalerPropertyInstance, self).__getstate__()
 
         state.update(pickle_function('fget', self.fget))
         state.update(pickle_function('fset', self.fset))
@@ -204,7 +204,7 @@ class SignalerPropertyInstance(SignalerDescriptorInstance):
         self.fset = unpickle_function('fset', state)
         self.fdel = unpickle_function('fdel', state)
 
-        super().__setstate__(state)
+        super(SignalerPropertyInstance, self).__setstate__(state)
 
 
 class signaler_property(property, SignalerPropertyInstance):  # , property
@@ -477,7 +477,7 @@ class signaler_property(property, SignalerPropertyInstance):  # , property
                 return func
             return decorator
         elif sig is self:
-            return super().on(signal_type, func)
+            return super(signaler_property, self).on(signal_type, func)
         else:
             return sig.on(signal_type, func)
 
@@ -544,7 +544,7 @@ class signaler_property(property, SignalerPropertyInstance):  # , property
 
         sig = self.get_signaler_instance(instance)
         if sig is self:
-            return super().off(signal_type, func)
+            return super(signaler_property, self).off(signal_type, func)
         else:
             return sig.off(signal_type, func)
 
@@ -570,7 +570,7 @@ class signaler_property(property, SignalerPropertyInstance):  # , property
             # Signal type given as first argument
             signal_type = first_arg
             args = args[1:]
-            return super().fire(signal_type, *args, **kwargs)
+            return super(signaler_property, self).fire(signal_type, *args, **kwargs)
         else:
             # Instance given as first argument
             instance = self.get_signaler_instance(first_arg)
@@ -596,6 +596,6 @@ class signaler_property(property, SignalerPropertyInstance):  # , property
 
         sig = self.get_signaler_instance(instance)
         if sig is self:
-            return super().block(signal_type, block)
+            return super(signaler_property, self).block(signal_type, block)
         else:
             return sig.block(signal_type, block)

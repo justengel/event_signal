@@ -74,7 +74,7 @@ class CallbackManager(SignalerInstance):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__()
+        super(CallbackManager, self).__init__()
         self._mp_variables.extend(['args', 'kwargs'])
 
         self.event_signals["change"] = []
@@ -106,7 +106,7 @@ class CallbackManager(SignalerInstance):
         if signal_type is True or signal_type is False:
             block = signal_type
             signal_type = "change"
-        return super().block(signal_type=signal_type, block=block)
+        return super(CallbackManager, self).block(signal_type=signal_type, block=block)
 
     def block_signal(self, block=True):
         """Temporarily block the signal from calling the callback methods.
@@ -114,7 +114,7 @@ class CallbackManager(SignalerInstance):
         Args:
             block (bool)[True]: Block or unblock the signals
         """
-        return super().block(signal_type="change", block=block)
+        return super(CallbackManager, self).block(signal_type="change", block=block)
 
     def check_arguments(self, *args, **kwargs):
         """Check the given arguments. DEPRECATED! Found this to be more of a hindrance."""
@@ -184,7 +184,7 @@ class Signal(SignalerDescriptorInstance):
     # __signalers__ = {}  # Need an annoying class global variable for multiprocessing. I don't see any way around this
 
     def __init__(self, *args):
-        super().__init__()
+        super(Signal, self).__init__()
         self.args = args
         self._mp_variables.extend(['args'])
     # end Constructor

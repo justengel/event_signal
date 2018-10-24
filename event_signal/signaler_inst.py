@@ -216,7 +216,7 @@ class SignalerInstance(object):
 class SignalerDescriptorInstance(SignalerInstance):
     """Class that can easily be used as a class descriptor"""
     def __init__(self):
-        super().__init__()
+        super(SignalerDescriptorInstance, self).__init__()
         self.name_searched = False
         self.__signalers__ = {}
         self._mp_variables.extend(['__signalers__', 'name_searched'])

@@ -182,7 +182,7 @@ def test_inheritance():
             self._z = value
 
         def move(self, x, y, z):
-            super().move(x, y)
+            super(Vector, self).move(x, y)
             self.set_z(z)
 
     p = Vector()
