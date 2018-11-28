@@ -1,6 +1,6 @@
 import os
 from .signaler import signaler
-from .binder import bind, unbind
+from .binder import bind, unbind, get_signaler
 
 try:
     from PyQt5 import QtWidgets
@@ -26,7 +26,7 @@ except (ImportError, Exception):  # Exception because QtPy will raise it's own e
     pass
 
 
-__all__ = ["get_qt_signal_name", "bind_qt", "unbind_qt", 'QT_SIGNALS']
+__all__ = ["get_qt_signal_name", 'connect_qt', "bind_qt", "unbind_qt", 'QT_SIGNALS']
 
 
 QT_SIGNALS = ['toggled', 'currentIndexChanged', 'editingFinished', 'textChanged', 'valueChanged']
@@ -66,6 +66,34 @@ def get_widget_value(widget):
                 return item.text()
     else:
         return widget.text()
+
+
+def connect_qt(widget, obj2, obj2_name=None, qt_signal=None):
+    """Connect a qt signal to an arbitrary function
+
+    Args:
+        widget (QWidget): Widget to connect it's change signal to call obj2's function/property.
+        obj2(object): Second object to bind. This can either be an object with a given property_name/obj2_name or a
+            signaler/SignalerInstance.
+        obj2_name(str)[None]: obj2's property name or name of setter method ("set_" or "set" + property_name), or
+            None if obj2 was a signaler/SignalerInstance or use property_name for obj2 as well.
+        qt_signal (str) [None]: variable name of the Qt Signal to connect.
+    """
+    if qt_signal is None:
+        qt_signal = get_qt_signal_name(widget)
+
+    obj2_sig = obj2
+    if not callable(obj2) or obj2_name is not None:
+        obj2_sig = get_signaler(obj2, obj2_name)
+
+    if qt_signal is not None and hasattr(widget, qt_signal):
+        if not hasattr(obj2_sig, '_set_from_widget'):
+            def obj2_set_from_widget(*args, **kwargs):
+                obj2_sig(get_widget_value(widget))
+            obj2_sig._set_from_widget = obj2_set_from_widget
+
+        getattr(widget, qt_signal).connect(obj2_sig._set_from_widget)
+        return
 
 
 def bind_qt(obj1, property_name, obj2, obj2_name=None, qt_signal=None):
@@ -116,36 +144,15 @@ def bind_qt(obj1, property_name, obj2, obj2_name=None, qt_signal=None):
         obj1_sig (signaler): Object 1 signal that is bound to obj2_sig
         obj2_sig (signaler): Object 2 signal that is bound to obj1_sig
     """
-
     obj1_sig, obj2_sig = bind(obj1, property_name, obj2, obj2_name=obj2_name)
 
     if QtWidgets is not None:
         if isinstance(obj1, QtWidgets.QWidget):
-            if qt_signal is None:
-                qt_signal = get_qt_signal_name(obj1)
-
-            if qt_signal is not None and hasattr(obj1, qt_signal):
-                if not hasattr(obj2_sig, '_set_from_widget'):
-                    def obj2_set_from_widget(*args, **kwargs):
-                        obj2_sig(get_widget_value(obj1))
-                    obj2_sig._set_from_widget = obj2_set_from_widget
-
-                getattr(obj1, qt_signal).connect(obj2_sig._set_from_widget)
-                return
+            connect_qt(obj1, obj2_sig, qt_signal=qt_signal)
+            return obj1_sig, obj2_sig
 
         if isinstance(obj2, QtWidgets.QWidget):
-            if qt_signal is None:
-                qt_signal = get_qt_signal_name(obj2)
-
-            if qt_signal is None or not hasattr(obj2, qt_signal):
-                raise ValueError('Cannot find a qt_signal to connect!')
-
-            if not hasattr(obj1_sig, '_set_from_widget'):
-                def obj1_set_from_widget(*args, **kwargs):
-                    obj1_sig(get_widget_value(obj2))
-                obj1_sig._set_from_widget = obj1_set_from_widget
-
-            getattr(obj2, qt_signal).connect(obj1_sig._set_from_widget)
+            connect_qt(obj2, obj1_sig, qt_signal=qt_signal)
 
     return obj1_sig, obj2_sig
 
