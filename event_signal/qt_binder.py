@@ -1,34 +1,36 @@
 import contextlib
 import os
+from .signaler_inst import SignalerInstance
 from .signaler import signaler
 from .binder import bind, unbind, get_signaler
 
 try:
-    from PyQt5 import QtWidgets
+    from PyQt5 import QtWidgets, QtCore
     os.environ['QT_API'] = 'pyqt5'  # Prevent annoying qtpy warning about chaning qt versions
 except ImportError:
     try:
-        from PySide2 import QtWidgets
+        from PySide2 import QtWidgets, QtCore
         os.environ['QT_API'] = 'pyside2'  # Prevent annoying qtpy warning about chaning qt versions
     except ImportError:
         try:
-            from PyQt4 import QtGui as QtWidgets
+            from PyQt4 import QtGui as QtWidgets, QtCore
             os.environ['QT_API'] = 'pyqt4'  # Prevent annoying qtpy warning about chaning qt versions
         except ImportError:
             try:
-                from PySide import QtGui as QtWidgets
+                from PySide import QtGui as QtWidgets, QtCore
                 os.environ['QT_API'] = 'pyside'  # Prevent annoying qtpy warning about chaning qt versions
             except ImportError:
                 QtWidgets = None
+                QtCore = None
                 # print('Cannot bind_qt or unbind_qt. The qtpy library is not installed!')
 try:
-    from qtpy import QtWidgets
+    from qtpy import QtWidgets, QtCore
 except (ImportError, Exception):  # Exception because QtPy will raise it's own error if qt is not on the system
     pass
 
 
 __all__ = ["get_qt_signal_name", 'block_qt_signals', 'get_widget_value', 'connect_qt', "bind_qt", "unbind_qt",
-           'QT_SIGNALS']
+           'QT_SIGNALS', 'qt_override_block_signals']
 
 
 QT_SIGNALS = ['toggled', 'currentIndexChanged', 'editingFinished', 'textChanged', 'valueChanged']
@@ -244,3 +246,12 @@ def unbind_qt(obj1, property_name=None, obj2=None, obj2_name=None, qt_signal=Non
                 pass
 
     return obj1_sig, obj2_sig
+
+
+def qt_override_block_signals(self, b):
+    """Set this method as a QWidget's blockSignals method to block qt signals and event_signal signals."""
+    for name in dir(self):
+        item = getattr(self, name, None)
+        if isinstance(item, SignalerInstance):
+            item.block(block=b)
+    return QtCore.QObject.blockSignals(self, b)

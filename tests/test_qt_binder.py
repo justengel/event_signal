@@ -104,10 +104,60 @@ def test_bind_qt_get_widget_value():
     app.exec_()
 
 
+def test_qt_override_block_signals():
+    import threading, time
+    from qtpy import QtWidgets
+    from event_signal import Signal, qt_override_block_signals
+
+    class CustomWidget(QtWidgets.QLineEdit):
+        new_sig = Signal(object)
+
+        # Override the block signals method to block both
+        blockSignals = qt_override_block_signals
+
+        def set_new_sig(self, value):
+            self.new_sig.emit(value)
+
+    app = QtWidgets.QApplication([])
+
+    widg = CustomWidget('Check signals after a time and test')
+
+    test = {'text': True, 'new_sig': True}
+
+    def set_text_test(*args, **kwargs):
+        test['text'] = False
+
+    def set_new_test(*args, **kwargs):
+        test['new_sig'] = False
+
+    widg.textChanged.connect(set_text_test)
+    widg.new_sig.connect(set_new_test)
+
+    def run_test():
+        time.sleep(0.5)  # Let the event loop run
+
+        widg.blockSignals(True)
+        widg.setText('hi')
+        widg.set_new_sig('blah')
+
+        time.sleep(0.5)  # Let the event loop run
+        app.quit()  # Exit app.exec_()
+
+    th = threading.Thread(target=run_test)
+    th.daemon = True
+    th.start()
+
+    app.exec_()
+
+    assert test['text']
+    assert test['new_sig']
+
+
 if __name__ == '__main__':
     try:
         # test_bind_qt()
         test_bind_qt_get_widget_value()
+        # test_qt_override_block_signals()
     except ImportError:
         print("QtPY not installed! Cannot test bind with Qt")
     print("All tests passed!")
