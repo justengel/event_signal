@@ -1,5 +1,5 @@
 # import threading
-from .signaler_inst import SignalerInstance
+from .interface import SignalerInstance
 from .signaler_prop import signaler_property
 from .signaler import signaler
 

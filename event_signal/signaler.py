@@ -1,9 +1,4 @@
-import marshal
-import types
-
-from event_signal import copy_signals_as_bound
-
-from .signaler_inst import SignalerInstance, SignalerDescriptorInstance
+from .interface import SignalerInstance, SignalerDescriptorInstance, copy_signals_as_bound
 from .signaler_prop import signaler_property
 from .mp_manager import pickle_function, unpickle_function
 

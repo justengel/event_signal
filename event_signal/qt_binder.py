@@ -1,6 +1,6 @@
 import contextlib
 import os
-from .signaler_inst import SignalerInstance
+from .interface import block_signals
 from .signaler import signaler
 from .binder import bind, unbind, get_signaler
 
@@ -250,8 +250,5 @@ def unbind_qt(obj1, property_name=None, obj2=None, obj2_name=None, qt_signal=Non
 
 def qt_override_block_signals(self, b):
     """Set this method as a QWidget's blockSignals method to block qt signals and event_signal signals."""
-    for name in dir(self):
-        item = getattr(self, name, None)
-        if isinstance(item, SignalerInstance):
-            item.block(block=b)
+    block_signals(self, block=b)
     return QtCore.QObject.blockSignals(self, b)

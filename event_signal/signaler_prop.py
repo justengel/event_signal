@@ -80,9 +80,8 @@ Example:
         Point.x.off(p, "change")  # Remove all callbacks from change
 
 """
-from .signal_funcs import get_signal, on_signal, off_signal, fire_signal, block_signals, \
-    copy_signals, copy_signals_as_bound
-from .signaler_inst import SignalerInstance, SignalerDescriptorInstance
+from .interface import get_signal, on_signal, off_signal, fire_signal, block_signals, \
+    copy_signals, copy_signals_as_bound, SignalerInstance, SignalerDescriptorInstance
 from .mp_manager import pickle_function, unpickle_function
 
 

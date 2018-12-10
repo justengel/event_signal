@@ -62,7 +62,7 @@ How it works:
     The above like of code first gets a CallbackManager with `my_class.something_happened`. The
     `.connect(function)` is calling the CallbackManager's 'connect' method.  
 """
-from .signaler_inst import SignalerInstance, SignalerDescriptorInstance
+from .interface import SignalerInstance, SignalerDescriptorInstance
 
 
 __all__ = ["Signal"]

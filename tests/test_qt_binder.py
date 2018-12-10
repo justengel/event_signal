@@ -1,3 +1,5 @@
+import threading
+import time
 
 
 def test_bind_qt():
@@ -15,7 +17,9 @@ def test_bind_qt():
         def set_name(self, name):
             self._name = str(name)
 
-    app = QtWidgets.QApplication([])
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication([])
 
     widg = QtWidgets.QWidget()
     lay = QtWidgets.QVBoxLayout()
@@ -30,19 +34,67 @@ def test_bind_qt():
 
     bind_qt(data, 'set_name', inp, 'setText')
 
-    btn = QtWidgets.QPushButton('Set Hello')
-    def set_hello():
-        data.set_name('Hello')
-    btn.clicked.connect(set_hello)
-    lay.addWidget(btn)
+    fail = [False, None]
 
-    unbind_btn = QtWidgets.QPushButton('unbind')
-    def unbind_call():
+    def run_tests():
+        time.sleep(0.01)
+
+        try:
+            value = 'Test'
+            inp.setText(value)
+            time.sleep(0.01)
+            assert data.get_name() == value
+            assert inp.text() == value
+        except AssertionError as err:
+            fail[0] = 'BIND: inp.setText did not set the binded value properly'
+            fail[1] = err
+            return
+
+        try:
+            value = 'Test2'
+            data.set_name(value)
+            assert data.get_name() == value
+            assert inp.text() == value
+        except AssertionError as err:
+            fail[0] = 'BIND: data.set_name did not set the binded value properly'
+            fail[1] = err
+            return
+
         unbind_qt(data, 'set_name', inp, 'setText')
-    unbind_btn.clicked.connect(unbind_call)
-    lay.addWidget(unbind_btn)
+
+        try:
+            old_value = value
+            value = 'New Test'
+            inp.setText(value)
+            time.sleep(0.01)
+            assert data.get_name() == old_value
+            assert inp.text() == value
+        except AssertionError as err:
+            fail[0] = 'UNBIND: inp.setText did not unbinded the connection properly'
+            fail[1] = err
+            return
+
+        try:
+            old_value = value
+            value = 'New Test2'
+            data.set_name(value)
+            assert data.get_name() == value
+            assert inp.text() == old_value
+        except AssertionError as err:
+            fail[0] = 'UNBIND: data.set_name did not unbinded the connection properly'
+            fail[1] = err
+            return
+
+        app.quit()
+
+    th = threading.Thread(target=run_tests)
+    th.daemon = True
+    th.start()
 
     app.exec_()
+
+    if fail[0]:
+        raise fail[1]
 
 
 def test_bind_qt_get_widget_value():
@@ -74,7 +126,9 @@ def test_bind_qt_get_widget_value():
         def set_name(self, name):
             self._name = str(name)
 
-    app = QtWidgets.QApplication([])
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication([])
 
     widg = QtWidgets.QWidget()
     lay = QtWidgets.QVBoxLayout()
@@ -89,19 +143,67 @@ def test_bind_qt_get_widget_value():
 
     bind_qt(data, 'set_name', inp, 'setText', qt_signal='editingFinished')
 
-    btn = QtWidgets.QPushButton('Set Hello')
-    def set_hello():
-        data.set_name('Hello')
-    btn.clicked.connect(set_hello)
-    lay.addWidget(btn)
+    fail = [False, None]
 
-    unbind_btn = QtWidgets.QPushButton('unbind')
-    def unbind_call():
+    def run_tests():
+        time.sleep(0.01)
+
+        try:
+            value = 'Test'
+            inp.setText(value)
+            time.sleep(0.01)
+            assert data.get_name() == value
+            assert inp.text() == value
+        except AssertionError as err:
+            fail[0] = 'BIND: inp.setText did not set the binded value properly'
+            fail[1] = err
+            return
+
+        try:
+            value = 'Test2'
+            data.set_name(value)
+            assert data.get_name() == value
+            assert inp.text() == value
+        except AssertionError as err:
+            fail[0] = 'BIND: data.set_name did not set the binded value properly'
+            fail[1] = err
+            return
+
         unbind_qt(data, 'set_name', inp, 'setText')
-    unbind_btn.clicked.connect(unbind_call)
-    lay.addWidget(unbind_btn)
+
+        try:
+            old_value = value
+            value = 'New Test'
+            inp.setText(value)
+            time.sleep(0.01)
+            assert data.get_name() == old_value
+            assert inp.text() == value
+        except AssertionError as err:
+            fail[0] = 'UNBIND: inp.setText did not unbinded the connection properly'
+            fail[1] = err
+            return
+
+        try:
+            old_value = value
+            value = 'New Test2'
+            data.set_name(value)
+            assert data.get_name() == value
+            assert inp.text() == old_value
+        except AssertionError as err:
+            fail[0] = 'UNBIND: data.set_name did not unbinded the connection properly'
+            fail[1] = err
+            return
+
+        app.quit()
+
+    th = threading.Thread(target=run_tests)
+    th.daemon = True
+    th.start()
 
     app.exec_()
+
+    if fail[0]:
+        raise fail[1]
 
 
 def test_qt_override_block_signals():
@@ -118,7 +220,9 @@ def test_qt_override_block_signals():
         def set_new_sig(self, value):
             self.new_sig.emit(value)
 
-    app = QtWidgets.QApplication([])
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication([])
 
     widg = CustomWidget('Check signals after a time and test')
 
@@ -134,13 +238,13 @@ def test_qt_override_block_signals():
     widg.new_sig.connect(set_new_test)
 
     def run_test():
-        time.sleep(0.5)  # Let the event loop run
+        time.sleep(0.01)  # Let the event loop run
 
         widg.blockSignals(True)
         widg.setText('hi')
         widg.set_new_sig('blah')
 
-        time.sleep(0.5)  # Let the event loop run
+        time.sleep(0.01)  # Let the event loop run
         app.quit()  # Exit app.exec_()
 
     th = threading.Thread(target=run_test)
@@ -155,9 +259,9 @@ def test_qt_override_block_signals():
 
 if __name__ == '__main__':
     try:
-        # test_bind_qt()
+        test_bind_qt()
         test_bind_qt_get_widget_value()
-        # test_qt_override_block_signals()
+        test_qt_override_block_signals()
     except ImportError:
         print("QtPY not installed! Cannot test bind with Qt")
     print("All tests passed!")
