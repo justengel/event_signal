@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from event_signal import SignalError, get_signal, on_signal, off_signal, fire_signal, block_signals, add_signal
 
 

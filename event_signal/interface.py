@@ -1,3 +1,5 @@
+from future.utils import raise_from
+
 from .mp_manager import SignalEvent, MpSignalManager
 
 
@@ -19,8 +21,10 @@ def get_signal(obj, signal_type):
             sig = obj.event_signals[signal_type]
         return [func for func in sig]
     except (KeyError, AttributeError) as error:
-        raise SignalError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
-                          "signal.".format(repr(signal_type))) from error
+        err = SignalError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
+                          "signal.".format(repr(signal_type)))
+        raise_from(err, error)
+        # raise err from error
 
 
 def on_signal(obj, signal_type, func):
@@ -49,7 +53,10 @@ def off_signal(obj, signal_type, func):
             sig = obj.event_signals[signal_type]
         if func is None:
             existed = len(sig) > 0
-            sig.clear()
+            try:
+                sig.clear()
+            except AttributeError:
+                del sig[:]  # Python 2.7
         else:
             existed = func in sig
             try:
@@ -67,8 +74,10 @@ def fire_signal(obj, signal_type, *args, **kwargs):
         sig = obj.event_signals[signal_type]
     except (KeyError, AttributeError) as error:
         sig = []
-        raise SignalError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
-                          "signal.".format(repr(signal_type))) from error
+        err = SignalError("Invalid 'signal_type' given ({:s}). Cannot connect a function to this "
+                          "signal.".format(repr(signal_type)))
+        raise_from(err, error)
+        # raise err from error
 
     for func in sig:
         func(*args, **kwargs)

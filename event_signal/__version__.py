@@ -1,0 +1,6 @@
+name = 'event_signal'
+version = '1.7.1'
+description = 'Library to help notify when something has changed.'
+url = 'https://github.com/justengel/event_signal'
+author = 'Justin Engel'
+author_email = 'jtengel08@gmail.com'

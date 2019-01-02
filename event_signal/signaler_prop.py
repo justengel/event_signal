@@ -115,15 +115,15 @@ class SignalerPropertyInstance(SignalerDescriptorInstance):
         self.check_change = check_change
         try:
             self.fget = fget
-        except AttributeError:  # property fget is a readonly attribute
+        except (AttributeError, TypeError):  # property fget is a readonly attribute
             pass
         try:
             self.fset = fset
-        except AttributeError:  # property fset is a readonly attribute
+        except (AttributeError, TypeError):  # property fset is a readonly attribute
             pass
         try:
             self.fdel = fdel
-        except AttributeError:  # property fdel is a readonly attribute
+        except (AttributeError, TypeError):  # property fdel is a readonly attribute
             pass
         if doc is None and fget is not None:
             doc = fget.__doc__

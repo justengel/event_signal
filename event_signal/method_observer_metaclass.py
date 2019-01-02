@@ -1,3 +1,5 @@
+from future.utils import with_metaclass
+
 import types
 from .signaler import signaler
 
@@ -17,6 +19,6 @@ class MethodObserverMeta(type):
         return super(MethodObserverMeta, typ).__new__(typ, name, bases, attr)
 
 
-class MethodObserver(metaclass=MethodObserverMeta):
+class MethodObserver(with_metaclass(MethodObserverMeta, object)):
     """Class mixin that makes all functions signaler functions that can be connected to."""
     pass

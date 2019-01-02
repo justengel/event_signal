@@ -7,7 +7,7 @@ See Also:
 """
 import os
 import glob
-from setuptools import setup
+from setuptools import setup, Extension
 
 
 def read(fname):
@@ -16,45 +16,47 @@ def read(fname):
         return file.read()
 
 
-# ========== Requirements ==========
-def check_options(line, options):
-    if line.startswith('--'):
-        opt, value = line.split(' ')
-        opt = opt.strip()
-        value = value.strip()
-        try:
-            options[opt].append(value)
-        except KeyError:
-            options[opt] = [value]
-        return True
-
-
-def parse_requirements(filename, options=None):
-    """load requirements from a pip requirements file """
-    if options is None:
-        options = {}
-    lineiter = (line.strip() for line in open(filename))
-    return [line for line in lineiter if line and not line.startswith("#") and not check_options(line, options)]
-
-
-requirements = parse_requirements('requirements.txt')
-# ========== END Requirements ==========
+def get_meta(filename):
+    """Return the metadata dictionary from the given filename."""
+    with open(filename, 'r') as f:
+        meta = {}
+        exec(compile(f.read(), filename, 'exec'), meta)
+        return meta
 
 
 if __name__ == "__main__":
-    setup(name="event_signal",
-          version="1.7.0",
-          description="Library to help notify when something has changed.",
-          url="https://github.com/justengel/event_signal",
-          download_url="https://github.com/justengel/event_signal/archive/v1.6.5.tar.gz",
+    # Variables
+    meta = get_meta('event_signal/__version__.py')
+    name = meta['name']
+    version = meta['version']
+    description = meta['description']
+    url = meta['url']
+    author = meta['author']
+    author_email = meta['author_email']
+    keywords = "signal observer signaler event javascript events bind"
+    packages = ['event_signal']
 
-          keywords=["signal", "observer", "signaler", "event", "javascript events", "bind"],
+    # Extensions
+    extensions = []
+    # module1 = Extension('libname',
+    #                     # define_macros=[('MAJOR_VERSION', '1')],
+    #                     # extra_compile_args=['-std=c99'],
+    #                     sources=['file.c', 'dir/file.c'],
+    #                     include_dirs=['./dir'])
+    # extensions.append(module1)
 
-          author="Justin Engel",
-          author_email="jtengel08@gmail.com",
+    setup(name=name,
+          version=version,
+          description=description,
+          long_description=read("README.md"),
+          keywords=keywords,
+          url=url,
+          download_url=''.join((url, '/archive/v', version, '.tar.gz')),
+
+          author=author,
+          author_email=author_email,
 
           license="MIT",
-
           platforms="any",
           classifiers=["Programming Language :: Python",
                        "Programming Language :: Python :: 3",
@@ -62,35 +64,30 @@ if __name__ == "__main__":
 
           scripts=[file for file in glob.iglob("bin/*.py")],
 
-          long_description=read("README.md"),
-          packages=["event_signal"],
-
-          install_requires=requirements,
-
+          ext_modules=extensions,  # C extensions
+          packages=packages,
           include_package_data=False,
-
           # package_data={
-          #     'package': ['file.dat']
-          # }
-
-          # options to install extra requirements
-          # extras_require={
-          #     'dev': [],
-          #     'test': ['converage'],
-          # }
+          #     'package': ['slat_app/resources/resources/*']
+          #     },
 
           # Data files outside of packages
-          # data_files=[('my_data', ['data/data_file'])],
+          # data_files=[('my_data', ['data/my_data.dat'])],
 
-          # keywords='sample setuptools development'
+          # options to install extra requirements
+          install_requires=[
+              'future>=0.17.1',
+              ],
+          # extras_require={
+          #     '': [''],
+          #     },
 
           # entry_points={
           #     'console_scripts': [
-          #         'foo = my_package.some_module:main_func',
-          #         'bar = other_module:some_func',
-          #     ],
+          #         'plot_csv=bin.plot_csv:plot_csv',
+          #         ],
           #     'gui_scripts': [
           #         'baz = my_package_gui:start_func',
-          #     ]
-          # }
+          #         ]
+          #     }
           )

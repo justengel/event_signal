@@ -10,7 +10,11 @@ import importlib
 
 import threading
 import multiprocessing
-from queue import Empty
+
+try:
+    from queue import Empty
+except ImportError:
+    from Queue import Empty
 
 
 __all__ = ['pickle_module', 'unpickle_module', 'pickle_function', 'unpickle_function', 'MpSignalManager',

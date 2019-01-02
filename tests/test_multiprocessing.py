@@ -77,7 +77,7 @@ def test_mp_signal():
     proc.start()
     # time.sleep(1)
     proc.join()
-    # time.sleep(60)
+    time.sleep(0.1)
 
     print(values)
     assert values == [[0, 1], [1, 2]]
