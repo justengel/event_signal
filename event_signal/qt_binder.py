@@ -4,25 +4,30 @@ from .interface import block_signals
 from .signaler import signaler
 from .binder import bind, unbind, get_signaler
 
-try:
-    from PyQt5 import QtWidgets, QtCore
-    os.environ['QT_API'] = 'pyqt5'  # Prevent annoying qtpy warning about chaning qt versions
-except ImportError:
+import sys
+
+# Prevent annoying qtpy warning about chaning qt versions
+QT_LIBS = ['PyQt5', 'PyQt4', 'PySide', 'PySide2', 'qtpy']
+loaded_qt = [str(pkg).lower() for pkg in sys.modules if pkg in QT_LIBS]
+if len(loaded_qt) == 0:
     try:
-        from PySide2 import QtWidgets, QtCore
-        os.environ['QT_API'] = 'pyside2'  # Prevent annoying qtpy warning about chaning qt versions
+        from PyQt5 import QtWidgets, QtCore
+        os.environ.setdefault('QT_API', 'pyqt5')
     except ImportError:
         try:
-            from PyQt4 import QtGui as QtWidgets, QtCore
-            os.environ['QT_API'] = 'pyqt4'  # Prevent annoying qtpy warning about chaning qt versions
+            from PySide2 import QtWidgets, QtCore
+            os.environ.setdefault('QT_API', 'pyside2')
         except ImportError:
             try:
-                from PySide import QtGui as QtWidgets, QtCore
-                os.environ['QT_API'] = 'pyside'  # Prevent annoying qtpy warning about chaning qt versions
+                from PyQt4 import QtGui as QtWidgets, QtCore
+                os.environ.setdefault('QT_API', 'pyqt4')
             except ImportError:
-                QtWidgets = None
-                QtCore = None
-                # print('Cannot bind_qt or unbind_qt. The qtpy library is not installed!')
+                try:
+                    from PySide import QtGui as QtWidgets, QtCore
+                    os.environ.setdefault('QT_API', 'pyside')
+                except ImportError:
+                    QtWidgets = None
+                    QtCore = None
 try:
     from qtpy import QtWidgets, QtCore
 except (ImportError, Exception):  # Exception because QtPy will raise it's own error if qt is not on the system

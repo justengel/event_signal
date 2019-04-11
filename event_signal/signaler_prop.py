@@ -82,7 +82,6 @@ Example:
 """
 from .interface import get_signal, on_signal, off_signal, fire_signal, block_signals, \
     copy_signals, copy_signals_as_bound, SignalerInstance, SignalerDescriptorInstance
-from .mp_manager import pickle_function, unpickle_function
 
 
 __all__ = ["signaler_property", "SignalerPropertyInstance"]
@@ -109,7 +108,6 @@ class SignalerPropertyInstance(SignalerDescriptorInstance):
             check_change (bool)[True]: If True before the setter is called check if the value is different (uses getter)
         """
         super(SignalerPropertyInstance, self).__init__()
-        self._mp_variables.extend(['check_change', '__doc__'])
 
         # Variables
         self.check_change = check_change
@@ -188,22 +186,6 @@ class SignalerPropertyInstance(SignalerDescriptorInstance):
     def create_signaler_instance(self, instance=None):
         """Create and return a signaler instance."""
         pass
-
-    def __getstate__(self):
-        state = super(SignalerPropertyInstance, self).__getstate__()
-
-        state.update(pickle_function('fget', self.fget))
-        state.update(pickle_function('fset', self.fset))
-        state.update(pickle_function('fdel', self.fdel))
-
-        return state
-
-    def __setstate__(self, state):
-        self.fget = unpickle_function('fget', state)
-        self.fset = unpickle_function('fset', state)
-        self.fdel = unpickle_function('fdel', state)
-
-        super(SignalerPropertyInstance, self).__setstate__(state)
 
 
 class signaler_property(property, SignalerPropertyInstance):  # , property

@@ -27,40 +27,6 @@ Two basic signals are provided `'before_change'` and `'change'`. The signaler_pr
     * 'before_delete' - signaler_property fired before `del obj.property` is called.
     * 'delete' - signaler_property fired after `del obj.property` is called.
 
-## Now works with Multiprocessing!
-
-Event signals now work with multiprocessing!
-
-```python
-import multiprocessing as mp
-from event_signal import signaler, multiprocessing_support
-
-signaler(fire_results=True)
-def run_calculation(a, b):
-    return a**2 + b**2
-    
-if __name__ == '__main__':
-    mp.freeze_support()
-    
-    # Creates a Queue for message passing and creates a consumer thread to fire signals in the main process.
-    multiprocessing_support()
-    
-    
-    results = []
-    
-    def save_results(res):
-        results.append(res)
-        
-    run_calculation.on('change', save_results)
-    
-    proc = mp.Process(target=run_calculation, args=(2, 3))
-    proc.start()
-    proc.join()
-    
-    assert results == [13]
-
-```
-
 ## Basics
 
 A signaler is a custom class that decorates a function. It acts just like a function (it is callable). A signaler can 

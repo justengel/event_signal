@@ -1,6 +1,5 @@
 from .interface import SignalerInstance, SignalerDescriptorInstance, copy_signals_as_bound
 from .signaler_prop import signaler_property
-from .mp_manager import pickle_function, unpickle_function
 
 
 __all__ = ["signaler", "SignalerDecoratorInstance"]
@@ -18,7 +17,6 @@ class SignalerDecoratorInstance(SignalerDescriptorInstance):
         self._func = None
 
         super(SignalerDecoratorInstance, self).__init__()
-        self._mp_variables.extend(['fire_results'])
 
         self.func = func
         self.getter = getter
@@ -33,7 +31,6 @@ class SignalerDecoratorInstance(SignalerDescriptorInstance):
     @func.setter
     def func(self, func):
         self._func = func
-        # self._update_func()  # Required for multiprocessing
 
     def _update_func(self):
         try:
@@ -79,23 +76,6 @@ class SignalerDecoratorInstance(SignalerDescriptorInstance):
     def create_signaler_instance(self, instance=None):
         """Create and return a signaler instance."""
         pass
-
-    def __getstate__(self):
-        state = super(SignalerDecoratorInstance, self).__getstate__()
-
-        state.update(pickle_function('func', self.func))
-        state.update(pickle_function('getter', self.getter))
-
-        return state
-
-    def __setstate__(self, state):
-        self._func = None
-        self.getter = None
-
-        self.func = unpickle_function('func', state)
-        self.getter = unpickle_function('getter', state)
-
-        super(SignalerDecoratorInstance, self).__setstate__(state)
 
 
 class signaler(SignalerDecoratorInstance):

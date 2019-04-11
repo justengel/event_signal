@@ -75,7 +75,6 @@ class CallbackManager(SignalerInstance):
 
     def __init__(self, *args, **kwargs):
         super(CallbackManager, self).__init__()
-        self._mp_variables.extend(['args', 'kwargs'])
 
         self.event_signals["change"] = []
         self.args = args
@@ -124,6 +123,7 @@ class CallbackManager(SignalerInstance):
                 msg = None
             except IndexError:
                 msg = " ".join(("Missing", str(len(self.args)-i), "required positional argument."))
+                given = None
             if msg:
                 # Not in exception because of python raising a double exception
                 raise TypeError(msg)
@@ -146,7 +146,6 @@ class CallbackManager(SignalerInstance):
     def __call__(self, *args, **kwargs):
         """Trigger the event (Call all of the CallbackManager's functions)."""
         return self.fire("change", *args, **kwargs)
-    # end __call__
 # end class CallbackManager
 
 
@@ -181,12 +180,9 @@ class Signal(SignalerDescriptorInstance):
             something_happened.emit("This happened!") # alias for __call__ to emulate Qt Signal
     """
 
-    # __signalers__ = {}  # Need an annoying class global variable for multiprocessing. I don't see any way around this
-
     def __init__(self, *args):
         super(Signal, self).__init__()
         self.args = args
-        self._mp_variables.extend(['args'])
     # end Constructor
 
     def create_signaler_instance(self, instance=None):

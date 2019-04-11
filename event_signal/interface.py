@@ -1,7 +1,5 @@
 from future.utils import raise_from
 
-from .mp_manager import SignalEvent, MpSignalManager
-
 
 __all__ = ['SignalError', "get_signal", "on_signal", "off_signal", "fire_signal", "block_signals", "add_signal",
            "copy_signals", "copy_signals_as_bound", 'SignalerInstance', 'SignalerDescriptorInstance']
@@ -221,9 +219,6 @@ class SignalerInstance(object):
         self.event_signals = {}
         self.name = str(id(self))
 
-        # Multiprocessing variables to save
-        self._mp_variables = ['name']
-
     # ========== Callbacks ==========
     get_signal = get_signal
 
@@ -327,14 +322,6 @@ class SignalerInstance(object):
         # Main process fire a normal signal
         fire_signal(self, signal_type, *args, **kwargs)
 
-    def fire_queue(self, signal_type, *args, **kwargs):
-        """Fire the signal by putting the data on a queue to be called in the main process."""
-        SignalEvent.fire_signal(self.name, signal_type, *args, **kwargs)
-        try:
-            fire_signal(self, signal_type, *args, **kwargs)
-        except SignalError:
-            pass
-
     def block(self, signal_type=None, block=True):
         """Temporarily block a specific signal or all signals from calling their callback functions.
 
@@ -382,78 +369,14 @@ class SignalerInstance(object):
             block (bool)[True]: Block or unblock the signals
         """
         return block_signals(self, signal_type=signal_type, block=block)
-    # ========== END Callbacks ==========
-
-    # ========== Multiprocessing Support ==========
-    def __getstate__(self):
-        """Return the state for multiprocessing.
-
-        Note:
-            The main process should connect to signals with the 'on' method. The multiprocessing should emit signals
-            with the 'fire' method.
-        """
-        # Get the variables to share with the other process
-        state = {key: getattr(self, key, None) for key in self._mp_variables}
-        state['_mp_variables'] = self._mp_variables
-        state['event_signals'] = list(self.event_signals.keys())
-
-        # Register the signal, so the appropriate signal can be called.
-        SignalEvent.register_signal(self.name, self)
-
-        # Share SignalEvent queues
-        state['SignalEvent.QUEUE'] = SignalEvent.QUEUE
-
-        # Change the fire function
-        state['fire'] = self.fire_queue
-
-        return state
-
-    def __setstate__(self, state):
-        """Recreate the object after unpickling."""
-        # Default variables
-        SignalEvent.QUEUE = state.pop('SignalEvent.QUEUE', SignalEvent.QUEUE)
-        self.is_separate_process = state.pop('is_separate_process', True)
-        self.event_signals = {key: [] for key in state.pop('event_signals')}
-
-        for key, value in state.items():
-            try:
-                setattr(self, key, value)
-            except:
-                pass
 
 
 class SignalerDescriptorInstance(SignalerInstance):
     """Class that can easily be used as a class descriptor"""
-    def __init__(self):
-        super(SignalerDescriptorInstance, self).__init__()
-        self.name_searched = False
-        self.__signalers__ = {}
-        self._mp_variables.extend(['__signalers__', 'name_searched'])
-
-    def _find_name(self, owner):
-        """Find the variable name for this signal from the owner.
-
-        This is required to allow multiprocessing to keep in sync. Multiprocessing does not pickle class variables, so
-        this object id may be different in a separate process.
-        """
-        if not self.name_searched:
-            try:
-                for key, val in owner.__dict__.items():
-                    if val == self:
-                        self.name = owner.__name__ + '.' + key
-                        break
-            except (ValueError, TypeError):
-                pass
-
-            self.name_searched = True
-
     def get_signaler_instance(self, instance=None):
         """Return (maybe create) the instance CallbackManager."""
         if instance is None:
             return self
-
-        # Check to find the correct name
-        self._find_name(instance.__class__)
 
         # Make sure the instance keeps track of all it's signalers
         if not hasattr(instance, '__signalers__'):
@@ -461,14 +384,11 @@ class SignalerDescriptorInstance(SignalerInstance):
 
         # Get the signaler
         try:
-            return instance.__signalers__[self.name]  # return an event handler object for the instance
+            return instance.__signalers__[self]  # return an event handler object for the instance
         except KeyError:
             # Create the signaler instance
             sig = self.create_signaler_instance(instance)
-            sig.name_searched = True
-            sig.name = self.name + '-' + repr(instance)
-
-            instance.__signalers__[self.name] = sig
+            instance.__signalers__[self] = sig
             return sig
 
     def create_signaler_instance(self, instance=None):
